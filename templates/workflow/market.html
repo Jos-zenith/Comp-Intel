@@ -1,0 +1,127 @@
+{% extends "_app_shell.html" %}
+{% from "workflow/_macros.html" import csrf with context %}
+{% block title %}Live market — CompIntel{% endblock %}
+{% block topbar_title %}Live market{% endblock %}
+{% block topbar_actions %}
+  <span class="badge badge-neutral" id="live-conn" title="Server-Sent Events, {{ backend }} event bus"><i class="fas fa-circle" style="font-size:0.5rem;"></i> connecting</span>
+{% endblock %}
+
+{% macro lpa(v) -%}{{ "Rs.%.1f LPA"|format(v) if v is not none else "-" }}{%- endmacro %}
+
+{% block content %}
+{% set c = snap.clearing %}
+<div class="panel">
+  <form method="GET" action="{{ url_for('wf.market') }}" class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); align-items:end;">
+    <div class="form-group"><label for="m-role">Role</label><select id="m-role" name="role">{% for r in roles %}<option {% if r == sel.role %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label for="m-level">Level</label><select id="m-level" name="level">{% for l in levels %}<option {% if l == sel.level %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label for="m-tier">City tier</label><select id="m-tier" name="tier">{% for t in tiers %}<option {% if t == sel.tier %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label for="m-stage">Funding stage</label><select id="m-stage" name="stage">{% for s in stages %}<option {% if s == sel.stage %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+    <div class="form-group"><button class="btn btn-primary" type="submit"><i class="fas fa-magnifying-glass-chart"></i> Show cohort</button></div>
+  </form>
+  {% if busiest %}
+  <p class="muted small" style="margin-top:6px;">Most active cohorts:
+    {% for b in busiest %}<a href="{{ url_for('wf.market', role=b.role, level=b.level, tier=b.city_tier, stage=b.funding_stage) }}">{{ b.role }} · {{ b.level }} · {{ b.city_tier }} · {{ b.funding_stage }}</a> ({{ b.n }}){{ "," if not loop.last }}
+    {% endfor %}</p>
+  {% endif %}
+</div>
+
+<div class="flash flash-warn" id="live-alert" role="status" {% if not snap.alert %}hidden{% endif %}>
+  <i class="fas fa-bell"></i> <span><strong>Market alert.</strong> <span id="live-alert-text">{{ c.message }}</span></span>
+</div>
+
+<div class="wf-grid">
+<div>
+<div class="panel" id="live-panel" data-stream-url="{{ url_for('wf.market_stream', role=sel.role, level=sel.level, tier=sel.tier, stage=sel.stage) }}">
+  <h2><i class="fas fa-wave-square"></i> {{ snap.label }}</h2>
+  <p class="panel-sub">Accepted offers in the last {{ snap.window_days }} days, offers from the last {{ snap.recent_days }} days weighted {{ "%g"|format(snap.recent_weight) }}x. Updates live when a new outcome lands in this cohort.</p>
+  <div id="live-suppressed" class="mrange-none" {% if not snap.suppressed %}hidden{% endif %}><i class="fas fa-user-shield"></i> <span id="live-reason">{{ snap.reason }}</span></div>
+  <div id="live-bar-wrap" {% if snap.suppressed %}hidden{% endif %}>
+    <div class="mrange" id="live-bar">
+      <div class="mrange-track"></div>
+      <div class="mrange-iqr" data-role="iqr"></div>
+      <div class="mrange-tick" data-role="p25"></div><div class="mrange-tick-label" data-role="p25-label"></div>
+      <div class="mrange-tick" data-role="p50"></div><div class="mrange-tick-label alt" data-role="p50-label"></div>
+      <div class="mrange-tick" data-role="p75"></div><div class="mrange-tick-label" data-role="p75-label"></div>
+      <div class="mrange-tick mrange-target" data-role="clearing" title="Clearing price (50% acceptance)"></div>
+    </div>
+    <div class="legend"><span class="lg-iqr">P25-P75 of accepted offers</span><span class="lg-target">Clearing price</span></div>
+  </div>
+  <div class="stat-grid" style="margin-top:14px;">
+    <div class="stat-cell"><div class="k">P25</div><div class="v" id="live-p25">{{ lpa(snap.p25) }}</div></div>
+    <div class="stat-cell"><div class="k">P50</div><div class="v accent" id="live-p50">{{ lpa(snap.p50) }}</div></div>
+    <div class="stat-cell"><div class="k">P75</div><div class="v" id="live-p75">{{ lpa(snap.p75) }}</div></div>
+    <div class="stat-cell"><div class="k">Accepted offers</div><div class="v" id="live-n">{{ snap.n }}</div><div class="s"><span id="live-contrib">{{ snap.contributors }}</span> companies · eff. n <span id="live-effn">{{ snap.effective_n }}</span></div></div>
+  </div>
+  <p class="muted small" style="margin-top:10px;">Computed <span id="live-updated" style="font-family:var(--font-mono);">{{ snap.computed_at|dt }}</span> UTC · latest data month <span id="live-latest">{{ snap.latest_month or '-' }}</span></p>
+</div>
+
+<div class="panel">
+  <h2><i class="fas fa-scale-unbalanced"></i> Market clearing price</h2>
+  <p class="panel-sub">From accepted <em>and</em> declined offers, plus negotiated openings and counters. Accepted-only data can't show this: it never sees the offers that lost.</p>
+  <p id="clearing-message" class="small">{{ c.message }}</p>
+  <div class="cost-row"><span>Clearing price (50% acceptance)</span><span id="clearing-price">{{ lpa(c.clearing_price_lpa) }}</span></div>
+  <div class="cost-row"><span>Price for <span id="close-rate">{{ c.close_rate_pct }}</span>% acceptance</span><span id="close-price">{{ lpa(c.close_price_lpa) }}</span></div>
+  <div class="cost-row"><span>Decline rate for a P50 offer</span><span id="decline-p50">{{ ("%.0f%%"|format(c.decline_at_p50_pct)) if c.decline_at_p50_pct is not none else '-' }}</span></div>
+  <div class="cost-row"><span>Change vs previous {{ snap.window_days }} days</span><span id="decline-trend">{{ ("%+.1f pts"|format(c.trend_pp)) if c.trend_pp is not none else '-' }}</span></div>
+  <div class="cost-row"><span>Offers within 5% of P50 (empirical)</span><span id="near-p50">{% if c.near_p50 %}{{ c.near_p50.n }} offers, {{ c.near_p50.decline_pct }}% declined{% else %}-{% endif %}</span></div>
+  <div class="cost-row"><span>Decided offers in window</span><span id="clearing-n">{{ c.n_decided }} ({{ c.accepted }} accepted, {{ c.declined }} declined)</span></div>
+  <div id="curve" style="margin-top:12px;" {% if not c.curve_by_p50 %}hidden{% endif %}>
+    <div class="muted small" style="margin-bottom:4px;">Acceptance probability by offer, relative to P50</div>
+    <table class="data-table"><thead><tr><th>Offer</th><th class="num">Rs. LPA</th><th class="num">Accept</th></tr></thead>
+      <tbody id="curve-body">{% for pt in c.curve_by_p50 or [] %}<tr><td>{{ "%.0f%%"|format(pt.ratio * 100) }} of P50</td><td class="num">{{ "%.1f"|format(pt.lpa) }}</td><td class="num">{{ pt.accept_pct }}%</td></tr>{% endfor %}</tbody></table>
+  </div>
+  <p class="disclaimer">{{ c.method }}. Alert when a P50 offer's fitted decline rate reaches {{ "%g"|format(c.alert_threshold_pct) }}% (Settings). Below the privacy thresholds nothing is shown.</p>
+</div>
+</div>
+
+<div>
+<div class="panel">
+  <h2><i class="fas fa-bell"></i> Cohorts in alert</h2>
+  {% if alerts %}
+  <ul class="driver-list">{% for a in alerts %}
+    <li><a href="{{ url_for('wf.market', role=a.role, level=a.level, tier=a.city_tier, stage=a.funding_stage) }}">{{ a.label }}</a><div class="small">{{ a.clearing.message }}</div></li>
+  {% endfor %}</ul>
+  {% else %}<p class="muted small">No cohort's P50 is currently being declined at or above the alert threshold.</p>{% endif %}
+</div>
+
+<div class="panel">
+  <h2><i class="fas fa-clock-rotate-left"></i> Recompute history (this cohort)</h2>
+  <p class="panel-sub">Each row is a snapshot the streaming worker stored when an event touched this cohort.</p>
+  {% if history %}
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>When (UTC)</th><th class="num">n</th><th class="num">P25</th><th class="num">P50</th><th class="num">P75</th><th></th></tr></thead>
+    <tbody id="history-body">{% for h in history %}
+      <tr><td class="small">{{ h.computed_at|dt }}</td><td class="num">{{ h.n }}</td>
+        {% if h.suppressed %}<td class="num muted" colspan="3">suppressed</td>{% else %}<td class="num">{{ "%.1f"|format(h.p25) }}</td><td class="num">{{ "%.1f"|format(h.p50) }}</td><td class="num">{{ "%.1f"|format(h.p75) }}</td>{% endif %}
+        <td>{% if h.alert %}<span class="badge badge-warning">alert</span>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted small" id="history-empty">No events have touched this cohort since the streaming pipeline started.</p>{% endif %}
+</div>
+
+<div class="panel">
+  <h2><i class="fas fa-circle-info"></i> How this differs from an offer's benchmark</h2>
+  <ul class="driver-list">
+    <li>Benchmarks on offers are <strong>frozen</strong> when the offer is created, so a submission can always be reproduced. This page is the live view; <em>Re-benchmark</em> on an offer adopts newer data.</li>
+    <li>Data comes only from the consented benchmark network: shared workspace outcomes (including those arriving from <a href="{{ url_for('wf.integrations_page') }}">HRIS/ATS integrations</a>) and design-partner imports.</li>
+    <li>Observation dates are month-level on purpose (privacy), so each offer counts as mid-month for the window and recency weight.</li>
+    <li>Event bus: <code>{{ backend }}</code>. Set <code>COMPINTEL_STREAM_BACKEND=redis</code> and <code>COMPINTEL_REDIS_URL</code> to run the worker and the live push across several server processes.</li>
+  </ul>
+  {% if company.mode == 'demo' and wf_can('manage_network_data') %}
+    {% if demo_batch %}
+      <p class="muted small" style="margin-top:10px;">The synthetic market sample is loaded (batch #{{ demo_batch.id }}); remove it under <a href="{{ url_for('wf.network_page') }}">Benchmark data</a>.</p>
+    {% else %}
+      <form method="POST" action="{{ url_for('wf.market_demo_sample') }}" style="margin-top:10px;">{{ csrf() }}
+        <button class="btn btn-outline btn-sm" type="submit"><i class="fas fa-flask"></i> Load synthetic market sample</button>
+        <span class="muted small">135 labelled synthetic partner offers from 6 pseudonymous companies; the Software Engineer · Senior · Tier 1 cohort's market moves up in the last two months.</span>
+      </form>
+    {% endif %}
+  {% endif %}
+</div>
+</div>
+</div>
+
+<script id="live-initial" type="application/json">{{ snap|tojson }}</script>
+{% endblock %}
+
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/market.js') }}"></script>{% endblock %}

@@ -1,0 +1,129 @@
+{% extends "_app_shell.html" %}
+{% from "workflow/_macros.html" import csrf with context %}
+{% block title %}Settings — CompIntel{% endblock %}
+{% block topbar_title %}Settings{% endblock %}
+
+{% block content %}
+{% set can_policy = wf_can('manage_policy') %}
+<div class="wf-grid">
+<div>
+  <div class="panel">
+    <h2><i class="fas fa-database"></i> Workspace data mode</h2>
+    <p class="panel-sub">Controls whether the synthetic demo model may produce benchmarks. Benchmarks already made keep the mode they were made in, and demo ones stay watermarked.</p>
+    <form method="POST" action="{{ url_for('wf.settings_mode') }}">
+      {{ csrf() }}
+      <fieldset {% if not wf_can('manage_users') %}disabled{% endif %} style="border:0;">
+      {% for key, label in modes.items() %}
+        <label class="checkbox-row" style="font-weight:500; margin-bottom:6px;"><input type="radio" name="mode" value="{{ key }}" {% if company.mode == key %}checked{% endif %}> {{ label }}</label>
+      {% endfor %}
+      {% if wf_can('manage_users') %}
+        {% if company.mode == 'demo' and usable_cohorts == 0 %}
+        <p class="small" style="margin-top:8px;"><strong>No real-data cohort is ready.</strong> Nothing in the benchmark network clears the privacy thresholds yet, so in pilot or production every offer would be entered manually. <a href="{{ url_for('wf.network_page') }}">Benchmark data</a> shows what's missing.</p>
+        <label class="checkbox-row small"><input type="checkbox" name="confirm_no_data"> Switch anyway (e.g. to test the no-data flow)</label>
+        {% endif %}
+        <button class="btn btn-outline btn-sm" type="submit" style="margin-top:8px;">Change mode</button>{% else %}<p class="muted small">Only an Admin can change the mode.</p>{% endif %}
+      </fieldset>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2><i class="fas fa-scale-balanced"></i> Compensation policy</h2>
+    <p class="panel-sub">Changes apply to new benchmarks and checks. Submitted offers keep the policy they were checked against.</p>
+    <form method="POST" action="{{ url_for('wf.settings_policy') }}">
+      {{ csrf() }}
+      <fieldset {% if not can_policy %}disabled{% endif %} style="border:0;">
+      <div class="form-grid">
+        {% for key, (label, typ, lo, hi) in fields.items() %}
+          <div class="form-group"><label for="s-{{ key }}">{{ label }}</label><input id="s-{{ key }}" type="number" step="any" min="{{ lo }}" max="{{ hi }}" name="{{ key }}" value="{{ settings[key] }}"></div>
+        {% endfor %}
+        <div class="form-group full-width">
+          <label class="checkbox-row" style="font-weight:500;"><input type="checkbox" name="share_outcomes" {% if settings.share_outcomes %}checked{% endif %} {% if not wf_can('manage_retention') %}disabled{% endif %}>
+            Share anonymised offer outcomes with the benchmark network (give-to-get). Only role, level, city tier, stage, health band, status and final cash CTC are shared - never names or company identity.</label>
+          {% if not wf_can('manage_retention') %}<input type="hidden" name="share_outcomes" value="{{ 'on' if settings.share_outcomes else '' }}">{% endif %}
+        </div>
+        <div class="form-group full-width">
+          <input type="hidden" name="health_positioning_field" value="1">
+          <label class="checkbox-row" style="font-weight:500;"><input type="checkbox" name="health_positioning" {% if settings.health_positioning %}checked{% endif %}>
+            Use company health to position offers. The market range never changes with health; this only moves the target percentile (+10 for Hypergrowth/Efficient, -10 for Cash-constrained, -15 for At-risk) and tilts ESOP up 25% when cash is tight. An authored policy heuristic, not a finding from data.</label>
+        </div>
+        {% if can_policy %}<div class="form-submit"><button class="btn btn-primary" type="submit">Save policy</button></div>{% endif %}
+      </div>
+      </fieldset>
+    </form>
+  </div>
+
+  <div class="panel" id="ruleset">
+    <h2><i class="fas fa-gavel"></i> Compliance ruleset</h2>
+    <div class="cost-row"><span>Active ruleset</span><span>{{ ruleset.id }} v{{ ruleset.version }}</span></div>
+    <div class="cost-row"><span>Effective from</span><span>{{ ruleset.effective_from }}</span></div>
+    {% if ruleset.changes %}<p class="small" style="margin-top:8px;">{{ ruleset.changes }}</p>{% endif %}
+    <p class="small" style="margin-top:8px;"><strong>CTC structure vs statutory wage.</strong> The CTC structure is how pay is split into lines (Basic, HRA, allowances). The statutory wage is the base PF and gratuity are calculated on: Basic + DA, plus any excluded allowances above 50% of total remuneration. The two can differ.</p>
+    <ul class="driver-list" style="margin-top:8px;">{% for s in ruleset.sources %}<li>{{ s }}</li>{% endfor %}</ul>
+    <p class="disclaimer">{{ disclaimer }}</p>
+  </div>
+</div>
+
+<div>
+  <div class="panel">
+    <h2><i class="fas fa-route"></i> Approval rules</h2>
+    <p class="panel-sub">Steps always run hiring manager, then People Ops, then Finance, then Admin. Each role appears at most once per offer.</p>
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Rule</th><th>Condition</th><th>Approver</th><th></th></tr></thead>
+      <tbody>{% for r in rules %}
+        <tr style="{% if not r.active %}opacity:0.5;{% endif %}"><td>{{ r.name }}</td>
+          <td>{{ condition_kinds[r.condition_kind] }}{% if r.condition_value %}: <span class="mono-num">{{ exception_kinds.get(r.condition_value, r.condition_value) }}</span>{% endif %}</td>
+          <td>{{ wf_roles[r.approver_role] }}</td>
+          <td>{% if can_policy %}<form method="POST" action="{{ url_for('wf.settings_rules') }}">{{ csrf() }}<input type="hidden" name="action" value="toggle"><input type="hidden" name="rule_id" value="{{ r.id }}">
+            <button class="btn btn-ghost btn-sm" type="submit">{{ 'Disable' if r.active else 'Enable' }}</button></form>{% endif %}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% if can_policy %}
+    <form method="POST" action="{{ url_for('wf.settings_rules') }}" style="margin-top:14px;">
+      {{ csrf() }}<input type="hidden" name="action" value="add">
+      <div class="form-grid">
+        <div class="form-group"><label for="r-name">Rule name</label><input id="r-name" name="name" maxlength="80" required></div>
+        <div class="form-group"><label for="r-role">Approver</label><select id="r-role" name="approver_role">{% for role in approver_roles %}<option value="{{ role }}">{{ wf_roles[role] }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label for="r-kind">Condition</label><select id="r-kind" name="condition_kind">{% for k, v in condition_kinds.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label for="r-val">Value</label><input id="r-val" name="condition_value" placeholder="e.g. 40, or Senior,Lead / Principal, or budget"></div>
+        <p class="form-note"><i class="fas fa-circle-info"></i> Exception values: {{ exception_kinds.keys()|join(', ') }}.</p>
+        <div class="form-submit"><button class="btn btn-outline" type="submit">Add rule</button></div>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2><i class="fas fa-users"></i> Users &amp; roles</h2>
+    <div class="table-wrap"><table class="data-table">
+      <tbody>{% for u in users %}
+        <tr><td>{{ u.name }}<span class="sub">{{ u.email }}</span></td>
+          <td>{% if wf_can('manage_users') %}
+            <form method="POST" action="{{ url_for('wf.settings_users') }}" class="inline-form">{{ csrf() }}<input type="hidden" name="action" value="role"><input type="hidden" name="user_id" value="{{ u.id }}">
+              <select name="role" onchange="this.form.submit()" aria-label="Role for {{ u.name }}">{% for k, v in wf_roles.items() %}<option value="{{ k }}" {% if u.role == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></form>
+            {% else %}{{ wf_roles[u.role] }}{% endif %}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% if wf_can('manage_users') %}
+    <form method="POST" action="{{ url_for('wf.settings_users') }}" style="margin-top:14px;">
+      {{ csrf() }}<input type="hidden" name="action" value="add">
+      <div class="form-grid">
+        <div class="form-group"><label for="u-name">Name</label><input id="u-name" name="name" required></div>
+        <div class="form-group"><label for="u-email">Work email</label><input id="u-email" type="email" name="email" required></div>
+        <div class="form-group"><label for="u-role">Role</label><select id="u-role" name="role">{% for k, v in wf_roles.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+        <div class="form-submit"><button class="btn btn-outline" type="submit">Invite user</button></div>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if wf_can('manage_retention') %}
+  <div class="panel">
+    <h2><i class="fas fa-user-secret"></i> Data retention</h2>
+    <p class="panel-sub">Removes candidate names from closed offers older than {{ settings.retention_days }} days. Pseudonymous IDs, snapshots and audit history stay.</p>
+    <form method="POST" action="{{ url_for('wf.settings_purge') }}">{{ csrf() }}
+      <button class="btn btn-danger btn-sm" type="submit" onclick="return confirm('Remove candidate names from closed offers past the retention period? This cannot be undone.');"><i class="fas fa-eraser"></i> Run retention purge</button></form>
+  </div>
+  {% endif %}
+</div>
+</div>
+{% endblock %}

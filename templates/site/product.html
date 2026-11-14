@@ -1,0 +1,38 @@
+{% extends "site/_base.html" %}
+{% from "site/_brand.html" import icon with context %}
+{% block title %}Product: the pre-offer workflow — CompIntel{% endblock %}
+
+{% block content %}
+<section class="mk-section-tight">
+  <div class="mk-wrap mk-section-head">
+    <div class="mk-eyebrow">Product</div>
+    <h1 style="font-size:clamp(1.8rem,3.8vw,2.6rem);">One workflow from requisition to offer outcome.</h1>
+    <p class="mk-lead" style="margin-top:10px;">CompIntel turns scattered compensation inputs into a clear, auditable offer decision.</p>
+    <div class="mk-cta-row">
+      {% if workflow_enabled %}<a class="mk-btn mk-btn-primary" href="{{ url_for('wf.company') }}">Start free workspace</a>{% else %}<a class="mk-btn mk-btn-primary" href="{{ url_for('mk.pilot', **{'from': 'product'}) }}">Apply for the pilot</a>{% endif %}
+      <a class="mk-btn mk-btn-ghost" href="{{ url_for('mk.sample') }}">Generate a sample offer benchmark</a>
+    </div>
+  </div>
+</section>
+
+<section class="mk-section-tight" style="padding-top:0;">
+  <div class="mk-wrap mk-grid mk-grid-2">
+    {% for n, ic, title, body, points in [
+      (1, 'offer', 'Create the offer request', 'Start from a requisition or a candidate. Role, level, city, employment type and budget preload; the candidate gets a pseudonymous ID.', ['Current and expected CTC, competing offer, start date', 'No candidate name needed to benchmark']),
+      (2, 'health', 'Add company context', 'Cash, burn, hiring budget and SaaS metrics - entered once, versioned on every save. Missing metrics fall back to stage defaults and lower confidence instead of blocking you.', ['ARR, NDR, churn, CAC, LTV, gross margin, headcount', 'Recruiters can ask Finance for metrics in one click']),
+      (3, 'benchmark', 'Generate the benchmark', 'P25/P50/P75 cash CTC with the peer cohort, observation count, data vintage and a confidence score that changes what is shown.', ['Low confidence shows a broad band and no target', 'Insufficient data means manual entry with a reason']),
+      (4, 'compare', 'Build the package', 'Fixed and variable pay, ESOP, joining bonus, relocation and notice buyout. Up to three scenarios side by side, with live runway impact.', ['Cost of P25 / P50 / P75 positions', 'ESOP Conservative / Base / Upside']),
+      (5, 'shield', 'Run checks', 'Market, internal band, internal parity, budget, runway, ESOP pool and dilution, CTC structure and statutory wage. Each check says pass, warning, needs approval, or blocked - and why.', ['Versioned India CTC ruleset on every check', 'Decision support, not legal advice']),
+      (6, 'approval', 'Route approvals', 'Policy rules add the hiring manager, People Ops, Finance or Admin. The route and a full snapshot freeze at submission; whoever submits cannot approve.', ['Approve, reject, request changes, comment', 'Hash-chained audit log with integrity check']),
+      (7, 'export', 'Generate the brief', 'An internal approval PDF for approvers and a candidate summary that carries only the package - no peer data, bands or company financials.', ['CTC warnings must be acknowledged before export']),
+      (8, 'outcome', 'Capture the outcome', 'Initial offer, counter, final package and decision, plus the decline reason. Outcomes from offers made outside CompIntel import by CSV.', ['Acceptance and P25-P75 coverage by role, level and city', 'Consent-gated contribution to the benchmark'])] %}
+    <div class="mk-card mk-step">
+      <span class="mk-step-n">{{ n }}</span>
+      <h3>{{ icon(ic, 20) }} {{ title }}</h3>
+      <p>{{ body }}</p>
+      <ul class="mk-list">{% for p in points %}<li>{{ icon('check', 18) }}<span class="mk-fine">{{ p }}</span></li>{% endfor %}</ul>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

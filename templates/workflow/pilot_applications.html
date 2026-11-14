@@ -1,0 +1,27 @@
+{% extends "_app_shell.html" %}
+{% block title %}Pilot applications — CompIntel{% endblock %}
+{% block topbar_title %}Pilot applications &amp; site funnel{% endblock %}
+
+{% block content %}
+<div class="stat-grid" style="margin-bottom:18px;">
+  <div class="stat-cell"><div class="k">Sample benchmarks run</div><div class="v accent">{{ metrics.samples }}</div><div class="s">primary site conversion</div></div>
+  <div class="stat-cell"><div class="k">Pilot applications</div><div class="v">{{ metrics.applications }}</div><div class="s">{{ metrics.sample_to_pilot_pct ~ '% of sample runs' if metrics.sample_to_pilot_pct is not none else '-' }}</div></div>
+  <div class="stat-cell"><div class="k">CTC calculator uses</div><div class="v">{{ metrics.ctc }}</div></div>
+  <div class="stat-cell"><div class="k">ESOP calculator uses</div><div class="v">{{ metrics.esop }}</div></div>
+</div>
+<p class="muted small" style="margin-bottom:16px;">Events carry no IP address, user agent or free text. Bounce rate and time on page need a separate analytics tool.</p>
+
+<div class="panel">
+  <h2><i class="fas fa-inbox"></i> Applications</h2>
+  {% if rows %}
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Submitted</th><th>Name</th><th>Work email</th><th>Company</th><th>Role</th><th>Size</th><th>Hires / yr</th><th>Cities</th><th>From</th></tr></thead>
+    <tbody>{% for r in rows %}
+      <tr><td>{{ r.submitted_at|dt }}</td><td>{{ r.name }}</td><td>{{ r.work_email }}</td><td>{{ r.company }}</td><td>{{ r.persona }}</td>
+        <td>{{ r.employees }}</td><td>{{ r.hires }}</td><td class="small">{{ (r.cities|fromjson)|join(', ') }}</td><td class="small">{{ r.source or '-' }}</td></tr>
+      {% if r.notes %}<tr><td></td><td colspan="8" class="small muted">{{ r.notes }}</td></tr>{% endif %}
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted small">No applications yet.</p>{% endif %}
+</div>
+{% endblock %}

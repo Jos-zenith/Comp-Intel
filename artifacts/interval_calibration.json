@@ -1,0 +1,31 @@
+{
+  "method": "P50 x quantiles of out-of-fold log residuals (5-fold CV on the training split)",
+  "global": {
+    "p25_ratio": 0.8603,
+    "p75_ratio": 1.1604,
+    "n": 19404
+  },
+  "by_level": {
+    "Junior": {
+      "p25_ratio": 0.8614,
+      "p75_ratio": 1.1575,
+      "n": 7460
+    },
+    "Lead / Principal": {
+      "p25_ratio": 0.8618,
+      "p75_ratio": 1.1699,
+      "n": 2140
+    },
+    "Mid": {
+      "p25_ratio": 0.8605,
+      "p75_ratio": 1.1625,
+      "n": 6223
+    },
+    "Senior": {
+      "p25_ratio": 0.8561,
+      "p75_ratio": 1.1583,
+      "n": 3581
+    }
+  },
+  "heldout_p25_p75_coverage_pct": 50.7
+}

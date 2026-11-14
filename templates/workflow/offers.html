@@ -1,0 +1,37 @@
+{% extends "_app_shell.html" %}
+{% from "workflow/_macros.html" import status with context %}
+{% block title %}Offers — CompIntel{% endblock %}
+{% block topbar_title %}Offers{% endblock %}
+{% block topbar_actions %}
+  {% if wf_can('export_benchmark') %}<a class="btn btn-ghost btn-sm" href="{{ url_for('wf.offers_export') }}"><i class="fas fa-file-csv"></i> Export CSV</a>{% endif %}
+  {% if wf_can('create_offer') %}<a class="btn btn-primary btn-sm" href="{{ url_for('wf.offer_new') }}"><i class="fas fa-plus"></i> New offer</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="tabs">
+  <a class="tab {% if not status %}active{% endif %}" href="{{ url_for('wf.offers') }}">All</a>
+  {% for s in ['draft', 'pending_approval', 'changes_requested', 'approved', 'sent', 'accepted', 'declined', 'withdrawn', 'rejected'] %}
+    <a class="tab {% if status == s %}active{% endif %}" href="{{ url_for('wf.offers', status=s) }}">{{ status_labels[s] }}</a>
+  {% endfor %}
+</div>
+<div class="panel">
+  {% if rows %}
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Candidate</th><th>Role</th><th>Status</th>{% if wf_can('view_benchmark') %}<th class="num">P25 / P50 / P75</th><th class="num">Target</th><th>Confidence</th>{% endif %}<th class="num">Updated</th></tr></thead>
+    <tbody>{% for r in rows %}{% set b = benchmarks[r.id] %}
+      <tr>
+        <td><a href="{{ url_for('wf.offer_detail', request_id=r.id) }}">{{ r.candidate_pseudo_id }}</a>{% if r.candidate_name and wf_can('view_benchmark') %}<span class="sub">{{ r.candidate_name }}</span>{% endif %}</td>
+        <td>{{ r.role }}<span class="sub">{{ r.level }} - {{ r.city }}</span></td>
+        <td>{{ status(r.status) }}</td>
+        {% if wf_can('view_benchmark') %}
+        <td class="num">{% if b.display.show_quantiles %}{{ "%.1f"|format(b.p25) }} / {{ "%.1f"|format(b.p50) }} / {{ "%.1f"|format(b.p75) }}{% elif b.display.lo %}band {{ "%.1f"|format(b.display.lo) }}-{{ "%.1f"|format(b.display.hi) }}{% else %}-{% endif %}</td>
+        <td class="num highlight">{{ "%.1f"|format(b.target) if b.display.show_target else '-' }}</td>
+        <td><span class="conf-{{ b.confidence.level }}">{{ b.confidence.level }}</span>{% if b.data_mode == 'demo' %}<span class="sub">demo data</span>{% endif %}</td>
+        {% endif %}
+        <td class="num">{{ r.updated_at|dt }}</td>
+      </tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted small">No offers{% if status %} with this status{% endif %}.</p>{% endif %}
+</div>
+{% endblock %}

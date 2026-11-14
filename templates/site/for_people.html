@@ -1,0 +1,28 @@
+{% extends "site/_base.html" %}
+{% from "site/_brand.html" import icon with context %}
+{% block title %}For People &amp; Recruiting — CompIntel{% endblock %}
+
+{% block content %}
+<section class="mk-section-tight">
+  <div class="mk-wrap mk-section-head">
+    <div class="mk-eyebrow">For People &amp; Recruiting</div>
+    <h1 style="font-size:clamp(1.8rem,3.8vw,2.6rem);">Move from salary guesswork to a defensible offer.</h1>
+    <p class="mk-lead" style="margin-top:10px;">Build, validate, approve, and explain offers in one workflow.</p>
+    <div class="mk-cta-row">
+      {% if workflow_enabled %}<a class="mk-btn mk-btn-primary" href="{{ url_for('wf.company') }}">Start free workspace</a>{% else %}<a class="mk-btn mk-btn-primary" href="{{ url_for('mk.pilot', **{'from': 'people'}) }}">Apply for the pilot</a>{% endif %}
+      <a class="mk-btn mk-btn-ghost" href="{{ url_for('mk.sample') }}">Generate a sample offer benchmark</a>
+    </div>
+  </div>
+</section>
+
+<section class="mk-section-tight" style="padding-top:0;">
+  <div class="mk-wrap mk-grid mk-grid-3">
+    <div class="mk-card">{{ icon('offer') }}<h3>Faster offer creation</h3><p>Role, level, city and budget preload from the requisition. A first benchmark needs no company metrics, and the target is under ten minutes from sign-in to submitted offer.</p></div>
+    <div class="mk-card">{{ icon('benchmark') }}<h3>Market context</h3><p>The range, the target and why it differs from a generic median, with the cohort and confidence in plain language.</p></div>
+    <div class="mk-card">{{ icon('equity') }}<h3>Internal-equity checks</h3><p>Compared against accepted offers for the same role, level, city and employment type, and suppressed when the group is too small to mean anything.</p></div>
+    <div class="mk-card">{{ icon('shield') }}<h3>Policy guardrails</h3><p>Override reasons above tolerance, ESOP pool and dilution caps, CTC structure checks. Problems are explained before an approver sees them.</p></div>
+    <div class="mk-card">{{ icon('approval') }}<h3>Approval workflow</h3><p>Routes to the hiring manager, People Ops, Finance or Admin by policy, with comments, change requests and a frozen snapshot.</p></div>
+    <div class="mk-card">{{ icon('export') }}<h3>Candidate-ready brief</h3><p>A clean summary of cash, CTC breakup, one-time pay and ESOP scenarios - with nothing internal in it.</p></div>
+  </div>
+</section>
+{% endblock %}

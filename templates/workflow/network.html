@@ -1,0 +1,98 @@
+{% extends "_app_shell.html" %}
+{% from "workflow/_macros.html" import csrf with context %}
+{% block title %}Benchmark data — CompIntel{% endblock %}
+{% block topbar_title %}Benchmark data network{% endblock %}
+
+{% block content %}
+<div class="flash {{ 'flash-warn' if company.mode == 'demo' else 'flash-success' }}" style="margin-bottom:16px;">
+  <i class="fas fa-database"></i>
+  {% if company.mode == 'demo' %}
+    This workspace is in <strong>demo</strong> mode, so benchmarks still come from the synthetic model.
+    {% if stats.usable_cohorts == 0 %}
+      <strong>Pilot mode isn't usable yet:</strong> no role / level / city tier / stage cohort has {{ settings.min_cohort_size }} accepted offers from {{ settings.min_contributors }} companies, so every offer would be Insufficient (manual entry, widened at best). The network holds {{ stats.records }} records from {{ stats.contributors }} {{ 'company' if stats.contributors == 1 else 'companies' }}; real offers from design partners are the blocker, not the product.
+    {% else %}
+      {{ stats.usable_cohorts }} {{ 'cohort clears' if stats.usable_cohorts == 1 else 'cohorts clear' }} the privacy thresholds today; switch to pilot in Settings to benchmark them from the observed offers below. Others will be widened or Insufficient.
+    {% endif %}
+  {% else %}
+    This workspace is in <strong>{{ company.mode }}</strong> mode: benchmarks come only from the observed, consented offers below, and only when a cohort has at least {{ settings.min_cohort_size }} accepted offers from {{ settings.min_contributors }} companies.
+  {% endif %}
+</div>
+
+<div class="stat-grid" style="margin-bottom:18px;">
+  <div class="stat-cell"><div class="k">Offer records</div><div class="v accent">{{ stats.records }}</div><div class="s">last {{ stats.lookback_months }} months - pilot target 500-1,000</div></div>
+  <div class="stat-cell"><div class="k">Contributing companies</div><div class="v">{{ stats.contributors }}</div><div class="s">pilot target 10-20</div></div>
+  <div class="stat-cell"><div class="k">Accepted (set the range)</div><div class="v">{{ stats.accepted }}</div><div class="s">declines are context only</div></div>
+  <div class="stat-cell"><div class="k">With a counteroffer</div><div class="v">{{ stats.with_counter }}</div><div class="s">decline reasons captured {{ stats.decline_reason_capture ~ '%' if stats.decline_reason_capture is not none else '-' }}</div></div>
+</div>
+
+<div class="wf-grid">
+<div>
+<div class="panel">
+  <h2><i class="fas fa-table-cells"></i> Coverage by role and level</h2>
+  <p class="panel-sub">Accepted offers per role and level, and how many companies they come from. A cohort below the thresholds is widened, then suppressed.</p>
+  {% if coverage %}
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Role</th><th>Level</th><th class="num">Accepted offers</th><th class="num">Companies</th><th>Usable alone?</th></tr></thead>
+    <tbody>{% for r in coverage %}
+      <tr><td>{{ r.role }}</td><td>{{ r.level }}</td><td class="num">{{ r.n }}</td><td class="num">{{ r.contributors }}</td>
+        <td>{% if r.n >= settings.min_cohort_size and r.contributors >= settings.min_contributors %}<span class="badge badge-success">yes</span>{% else %}<span class="badge badge-warning">needs more</span>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted small">No accepted offers in the network yet.</p>{% endif %}
+</div>
+
+<div class="panel">
+  <h2><i class="fas fa-layer-group"></i> Records by source</h2>
+  {% if by_source %}
+  <table class="data-table"><tbody>
+    {% for r in by_source %}<tr><td>{{ {'tenant_outcome': 'Workspace outcomes (data sharing on)', 'partner_import': 'Design-partner imports'}.get(r.source, r.source) }}</td><td>{{ r.status }}</td><td class="num">{{ r.n }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="muted small">Empty.</p>{% endif %}
+  <p class="disclaimer">Records hold no names and no company identity. A company is a salted hash, city is reduced to its tier, and company context to bands (employees, ARR, NDR).</p>
+</div>
+</div>
+
+<div>
+<div class="panel">
+  <h2><i class="fas fa-file-import"></i> Import design-partner offers</h2>
+  <p class="panel-sub">Anonymised offer records from partner companies, one row per offer, accepted, declined or withdrawn. If any row is invalid, nothing is imported. Rows already in the network are skipped.</p>
+  {% if wf_can('manage_network_data') %}
+  <form method="POST" action="{{ url_for('wf.network_import') }}" enctype="multipart/form-data">
+    {{ csrf() }}
+    <div class="form-group"><label for="n-file">CSV file</label><input id="n-file" type="file" name="file" accept=".csv,text/csv" required></div>
+    <div class="form-group"><label for="n-basis">Consent basis</label>
+      <select id="n-basis" name="consent_basis" required><option value="" disabled selected>Select</option>
+        {% for k, v in consent_bases.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label for="n-note">Note (optional)</label><input id="n-note" name="note" maxlength="300" placeholder="e.g. Partner P-017, Q3 offers"></div>
+    <label class="checkbox-row ack-box"><input type="checkbox" name="consent_attested" required> I confirm the contributing company agreed to share these records for aggregated benchmarking, and that they contain no candidate names, emails or company names.</label>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="btn btn-primary" type="submit"><i class="fas fa-upload"></i> Import</button>
+      <a class="btn btn-ghost" href="{{ url_for('wf.network_template') }}"><i class="fas fa-download"></i> Template</a>
+    </div>
+  </form>
+  {% else %}
+  <p class="muted small">Only an Admin can import or remove network data. <a href="{{ url_for('wf.network_template') }}">Download the template</a> to prepare a file.</p>
+  {% endif %}
+  <p class="muted small" style="margin-top:10px;">Columns: {{ columns|join(', ') }}. <code>company_ref</code> is the partner's pseudonymous code and is hashed on import. NDR band is one of {{ ndr_bands|join(' | ') }}.</p>
+</div>
+
+<div class="panel">
+  <h2><i class="fas fa-clock-rotate-left"></i> Import batches</h2>
+  {% if batches %}
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>#</th><th>When</th><th>By</th><th class="num">Rows</th><th class="num">Cos.</th><th>Consent</th><th></th></tr></thead>
+    <tbody>{% for b in batches %}
+      <tr><td>{{ b.id }}</td><td>{{ b.imported_at|dt }}</td><td>{{ b.user_name or '-' }}</td><td class="num">{{ b.rows }}</td><td class="num">{{ b.contributors }}</td>
+        <td class="small">{{ b.consent_basis }}{% if b.note %}<div class="sub">{{ b.note }}</div>{% endif %}</td>
+        <td>{% if b.removed_at %}<span class="badge badge-neutral">removed {{ b.removed_at|dt }}</span>
+            {% elif wf_can('manage_network_data') %}
+            <form method="POST" action="{{ url_for('wf.network_batch_remove', batch_id=b.id) }}" onsubmit="return confirm('Remove every record in batch #{{ b.id }} from future benchmarks?');">{{ csrf() }}
+              <button class="btn btn-ghost btn-sm" type="submit"><i class="fas fa-trash"></i> Remove</button></form>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  <p class="muted small" style="margin-top:8px;">Removing a batch is the partner deletion workflow: its rows stop feeding benchmarks immediately. Offers already submitted keep their frozen snapshot, and their reproducibility check will report the missing rows.</p>
+  {% else %}<p class="muted small">No partner data imported yet.</p>{% endif %}
+</div>
+</div>
+</div>
+{% endblock %}

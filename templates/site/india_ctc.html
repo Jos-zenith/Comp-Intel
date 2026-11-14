@@ -1,0 +1,85 @@
+{% extends "site/_base.html" %}
+{% from "site/_brand.html" import icon with context %}
+{% block title %}India CTC &amp; Wage Code calculator — CompIntel{% endblock %}
+{% block description %}Model cash CTC, employer cost, statutory wage under the Code on Wages, PF, gratuity and candidate take-home before the offer is sent.{% endblock %}
+
+{% block content %}
+<section class="mk-section-tight">
+  <div class="mk-wrap">
+    <div class="mk-eyebrow">India CTC &amp; Wage Code</div>
+    <h1 style="font-size:clamp(1.8rem,3.8vw,2.6rem);">Know the true cost of an offer before you send it.</h1>
+    <p class="mk-lead" style="margin-top:10px;">Model cash CTC, employer liabilities, statutory wage, and candidate take-home in one place.</p>
+  </div>
+</section>
+
+<section class="mk-section-tight" style="padding-top:0;">
+  <div class="mk-wrap mk-split" style="align-items:start;">
+    <div class="mk-panel">
+      <h2 style="font-size:1.25rem;">{{ icon('calculator', 22) }} CTC calculator</h2>
+      <form class="mk-form" method="GET" action="{{ url_for('mk.india_ctc') }}" style="margin-top:12px;">
+        <div class="mk-form mk-form-2">
+          <div class="mk-field"><label for="ctc">Cash CTC (&#8377; LPA)</label><input id="ctc" name="cash_ctc" type="number" step="0.1" min="1" max="1000" value="{{ form.cash_ctc }}" required inputmode="decimal"></div>
+          <div class="mk-field"><label for="var">Variable pay (&#8377; LPA)</label><input id="var" name="variable" type="number" step="0.1" min="0" value="{{ form.variable }}" inputmode="decimal"></div>
+        </div>
+        <div class="mk-field"><label for="city">City</label><select id="city" name="city">{% for c in cities %}<option {% if form.city == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select>
+          <p class="hint">Metro cities use 50% of Basic for HRA, others 40% (a payroll convention, not a statute).</p></div>
+        <div><button class="mk-btn mk-btn-primary" type="submit">Calculate</button></div>
+      </form>
+      {% if error %}<p class="mk-error" role="alert" style="margin-top:14px;">{{ error }}</p>{% endif %}
+    </div>
+
+    <div>
+    {% if r %}
+      {% set st = r.structure %}{% set th = r.take_home %}
+      <div class="mk-grid mk-grid-2" style="margin-bottom:16px;">
+        <div class="mk-card"><div class="mk-kicker">Employer cost / year</div><div class="mk-price">&#8377;{{ th.employer_cost_inr|indian }}</div><p class="mk-fine">Equals cash CTC: employer EPF and gratuity are inside it.</p></div>
+        <div class="mk-card"><div class="mk-kicker">Take-home / month (estimate)</div><div class="mk-price">&#8377;{{ th.monthly_take_home_inr|indian }}</div><p class="mk-fine">After employee EPF, professional tax and income tax.</p></div>
+      </div>
+      <div class="mk-table-wrap">
+        <table class="mk-table">
+          <caption class="mk-fine" style="text-align:left; padding:10px 12px;">CTC breakup in whole rupees - sums exactly to cash CTC</caption>
+          <tbody>
+            {% for row in st.rows %}<tr><td>{{ row.component }}</td><td class="r">&#8377;{{ row.inr|indian }}</td></tr>{% endfor %}
+            <tr><th scope="row">Total cash CTC</th><td class="r"><strong>&#8377;{{ st.sum_inr|indian }}</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3 style="margin-top:20px;">Statutory wage (PF / gratuity base)</h3>
+      <div class="mk-table-wrap"><table class="mk-table"><tbody>
+        <tr><td>Remuneration <span class="mk-fine">CTC less employer EPF and gratuity</span></td><td class="r">&#8377;{{ st.remuneration_inr|indian }}</td></tr>
+        <tr><td>Allowances added back <span class="mk-fine">excluded components above 50% of remuneration</span></td><td class="r">&#8377;{{ st.wage_addback_inr|indian }}</td></tr>
+        <tr><th scope="row">Statutory wage (approx.)</th><td class="r"><strong>&#8377;{{ st.statutory_wage_inr|indian }}</strong>
+          {% if st.wage_addback_inr %}<span class="mk-tag mk-tag-amber">add-back applies</span>{% else %}<span class="mk-tag mk-tag-ok">{{ icon('check', 14) }} no add-back</span>{% endif %}</td></tr>
+      </tbody></table></div>
+      <h3 style="margin-top:20px;">Candidate take-home (estimate)</h3>
+      <div class="mk-table-wrap"><table class="mk-table"><tbody>
+        <tr><td>Gross salary</td><td class="r">&#8377;{{ th.gross_salary_inr|indian }}</td></tr>
+        <tr><td>Employee EPF (12% of Basic)</td><td class="r">-&#8377;{{ th.employee_pf_inr|indian }}</td></tr>
+        <tr><td>Professional tax (assumed)</td><td class="r">-&#8377;{{ th.professional_tax_inr|indian }}</td></tr>
+        <tr><td>Income tax incl. cess <span class="mk-fine">on &#8377;{{ th.taxable_income_inr|indian }} taxable</span></td><td class="r">-&#8377;{{ th.income_tax_inr|indian }}</td></tr>
+        <tr><th scope="row">Take-home per year</th><td class="r"><strong>&#8377;{{ th.annual_take_home_inr|indian }}</strong></td></tr>
+      </tbody></table></div>
+      <p class="mk-fine" style="margin-top:8px;">{{ th.assumptions }}</p>
+    {% else %}
+      <div class="mk-card">{{ icon('cash') }}<h3>Enter a cash CTC to see the breakup</h3><p>Basic, HRA, special allowance, LTA, variable pay, employer EPF and gratuity, plus the statutory wage and an estimated take-home.</p></div>
+    {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="mk-section mk-section-alt">
+  <div class="mk-wrap">
+    <div class="mk-grid mk-grid-3">
+      <div class="mk-card">{{ icon('shield') }}<h3>Why structure matters before the offer</h3><p>Two offers with the same CTC can carry different PF and gratuity liabilities and very different take-home. Fixing that after the letter is signed is expensive.</p></div>
+      <div class="mk-card">{{ icon('cash') }}<h3>Cash CTC, employer cost, take-home</h3><p>Cash CTC is what you budget. Employer cost includes your PF and gratuity accrual. Take-home is what the candidate compares against their current pay.</p></div>
+      <div class="mk-card">{{ icon('audit') }}<h3>Statutory wage under the Code on Wages</h3><p>Wages are Basic + DA. If excluded allowances exceed 50% of remuneration, the excess is added back for PF and gratuity, which can differ from the Basic line.</p></div>
+    </div>
+    <div class="mk-panel" style="margin-top:24px;">
+      <h3>{{ icon('audit', 20) }} Rule versions</h3>
+      <p class="mk-fine">CTC checks: <span class="mk-mono">{{ ruleset.id }} v{{ ruleset.version }}</span>, effective {{ ruleset.effective_from }}. Take-home: <span class="mk-mono">{{ tax.id }} {{ tax.version }}</span> - {{ tax.source }}</p>
+      <ul class="mk-list">{% for src in ruleset.sources %}<li>{{ icon('check', 18) }}<span class="mk-fine">{{ src }}</span></li>{% endfor %}</ul>
+      <p class="mk-fine" style="margin-top:12px;"><strong>Decision support only. Not legal or payroll-audit advice.</strong> {{ disclaimer }} Tax slabs change with each Finance Act; check the current year's before relying on the take-home figure.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}

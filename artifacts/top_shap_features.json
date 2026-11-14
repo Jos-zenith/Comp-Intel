@@ -1,0 +1,42 @@
+[
+  {
+    "feature": "num__years_experience",
+    "mean_abs_shap_lpa": 5.105948636515526
+  },
+  {
+    "feature": "cat__level_Junior",
+    "mean_abs_shap_lpa": 4.4697376996450355
+  },
+  {
+    "feature": "cat__level_Mid",
+    "mean_abs_shap_lpa": 2.6232730077504134
+  },
+  {
+    "feature": "cat__target_market_Cross-border",
+    "mean_abs_shap_lpa": 2.5561494964479854
+  },
+  {
+    "feature": "cat__funding_stage_Bootstrapped",
+    "mean_abs_shap_lpa": 1.508404056291495
+  },
+  {
+    "feature": "cat__funding_stage_Series C+",
+    "mean_abs_shap_lpa": 1.4788386971589522
+  },
+  {
+    "feature": "cat__role_ML / AI Engineer",
+    "mean_abs_shap_lpa": 1.1709737954197588
+  },
+  {
+    "feature": "cat__funding_stage_Pre-IPO / Public",
+    "mean_abs_shap_lpa": 1.162352565956713
+  },
+  {
+    "feature": "cat__city_Bengaluru",
+    "mean_abs_shap_lpa": 1.1400481661720923
+  },
+  {
+    "feature": "cat__role_Product Manager",
+    "mean_abs_shap_lpa": 1.0789975679826913
+  }
+]

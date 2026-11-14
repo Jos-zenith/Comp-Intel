@@ -1,0 +1,36 @@
+{% extends "site/_base.html" %}
+{% from "site/_brand.html" import icon with context %}
+{% block title %}For Founders &amp; Finance — CompIntel{% endblock %}
+
+{% block content %}
+<section class="mk-hero" style="padding:48px 0;">
+  <div class="mk-wrap mk-section-head" style="margin-bottom:0;">
+    <div class="mk-eyebrow" style="color:#6FD3D1;">For Founders &amp; Finance</div>
+    <h1>Every offer has a runway consequence.</h1>
+    <p class="mk-lead" style="margin-top:12px;">See the cash, burn, and hiring-plan impact before approving the package.</p>
+    <div class="mk-cta-row"><a class="mk-btn mk-btn-amber" href="{{ url_for('mk.pilot', **{'from': 'founders'}) }}">Book a walkthrough</a>
+      <a class="mk-btn mk-btn-ghost-dark" href="{{ url_for('mk.sample') }}">Generate a sample offer benchmark</a></div>
+  </div>
+</section>
+
+<section class="mk-section">
+  <div class="mk-wrap mk-grid mk-grid-3">
+    <div class="mk-card">{{ icon('cash') }}<h3>Compensation burn</h3><p>Recurring annual cost, one-time cash and year-one cost for every scenario, in the units you budget in.</p></div>
+    <div class="mk-card">{{ icon('runway') }}<h3>Runway impact</h3><p>Runway before and after the hire, from your cash and burn. Offers that take you below your runway floor need Finance approval.</p></div>
+    <div class="mk-card">{{ icon('spreadsheet') }}<h3>Hiring-plan variance</h3><p>Each offer against the average budget per planned hire, so one stretch offer doesn't quietly eat the next two hires.</p></div>
+    <div class="mk-card">{{ icon('approval') }}<h3>Approval thresholds</h3><p>Route by cash amount, level, role family, city, or by exception: above P75, over budget, below the runway floor, ESOP over the dilution cap.</p></div>
+    <div class="mk-card">{{ icon('compare') }}<h3>Offer-cost scenarios</h3><p>The cost of paying at P25, P50 or P75 side by side: what moving from the median to P75 does to burn and runway.</p></div>
+    <div class="mk-card">{{ icon('audit') }}<h3>Finance-ready audit trail</h3><p>Every submission freezes inputs, benchmark, checks, policy and route, and the audit log is hash-chained so edits are detectable.</p></div>
+  </div>
+</section>
+
+<section class="mk-section mk-section-alt">
+  <div class="mk-wrap mk-split">
+    <div>
+      <h2>Health positions the offer. It never moves the market.</h2>
+      <p class="mk-lead">A cash-tight company doesn't change what the market pays a senior engineer in Bengaluru; it changes where you aim and how much of the package you carry in ESOP. CompIntel keeps those two separate and shows you both.</p>
+    </div>
+    <p class="mk-quote">"Your financials stay private. They shape your recommendation and never enter the shared benchmark."</p>
+  </div>
+</section>
+{% endblock %}

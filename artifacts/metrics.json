@@ -1,0 +1,64 @@
+{
+  "Linear Regression (baseline)": {
+    "r2": 0.7950123226099863,
+    "mae_lpa": 5.447126407764581,
+    "mape_pct": 28.331222971313952
+  },
+  "HistGradientBoostingRegressor (P50, production)": {
+    "r2": 0.8532380993729372,
+    "mae_lpa": 4.24681943363911,
+    "mape_pct": 17.8860948917433
+  },
+  "quantile_monotonicity_pct": 98.3305853256389,
+  "interval_calibration": {
+    "method": "P50 x quantiles of out-of-fold log residuals (5-fold CV on the training split)",
+    "p25_p75_coverage_pct": 50.70074196207749,
+    "target_coverage_pct": 50.0,
+    "median_half_width_pct": 15.100000000000001,
+    "independent_quantile_models_coverage_pct": 46.413849958779885
+  },
+  "evaluation_note": "All scores are measured on held-out rows of the same synthetic dataset the model was trained on. They show how well the model recovers the generator's formula, not how well it predicts real Indian SaaS offers. No real-offer validation has been done yet.",
+  "cross_validation_5fold": {
+    "Linear Regression (baseline)": {
+      "r2_mean": 0.777348253785101,
+      "r2_std": 0.009287548810845515,
+      "mae_mean_lpa": 5.513812022556797,
+      "mae_std_lpa": 0.040088330944627444
+    },
+    "HistGradientBoostingRegressor (P50, production)": {
+      "r2_mean": 0.8390946223318503,
+      "r2_std": 0.007070530505785188,
+      "mae_mean_lpa": 4.328847909295472,
+      "mae_std_lpa": 0.03809902683056375
+    }
+  },
+  "face_validity_checks": [
+    {
+      "label": "Chennai, Domestic, Mid, Series A SaaS (cited: Rs.7.9-8.7 LPA for Chennai engineers)",
+      "predicted_p50_lpa": 16.48,
+      "cited_range_lpa": [
+        6.0,
+        12.0
+      ],
+      "within_cited_range": false
+    },
+    {
+      "label": "Bengaluru, Cross-border, Senior, Series C+ (cited: FAANG/cross-border tier Rs.35-60 LPA)",
+      "predicted_p50_lpa": 66.95,
+      "cited_range_lpa": [
+        28.0,
+        70.0
+      ],
+      "within_cited_range": true
+    },
+    {
+      "label": "Domestic Seed-stage SaaS, Junior (cited IT-services-adjacent range: Rs.3.5-6 LPA)",
+      "predicted_p50_lpa": 4.29,
+      "cited_range_lpa": [
+        4.0,
+        12.0
+      ],
+      "within_cited_range": true
+    }
+  ]
+}

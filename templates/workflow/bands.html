@@ -1,0 +1,59 @@
+{% extends "_app_shell.html" %}
+{% from "workflow/_macros.html" import csrf with context %}
+{% block title %}Job architecture — CompIntel{% endblock %}
+{% block topbar_title %}Job architecture &amp; internal bands{% endblock %}
+
+{% block content %}
+{% set editable = wf_can('manage_bands') %}
+<div class="page-head">
+  <div><h2>Internal pay bands</h2><p>Cash CTC bands per role, level and city tier. Used for the internal-equity check and compa-ratio to midpoint.</p></div>
+  {% if editable %}
+  <form method="POST">{{ csrf() }}<input type="hidden" name="action" value="seed">
+    <button class="btn btn-outline btn-sm" type="submit"><i class="fas fa-seedling"></i> Fill missing bands from demo data</button></form>
+  {% endif %}
+</div>
+
+<div class="wf-grid">
+  <div class="panel">
+    <div class="tabs">
+      <a class="tab {% if not role_filter %}active{% endif %}" href="{{ url_for('wf.bands') }}">All roles</a>
+      {% for fam, rs in roles.items() %}{% for r in rs %}
+        <a class="tab {% if role_filter == r %}active{% endif %}" href="{{ url_for('wf.bands', role=r) }}">{{ r }}</a>
+      {% endfor %}{% endfor %}
+    </div>
+    {% if rows %}
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Role</th><th>Level</th><th>City tier</th><th class="num">Min</th><th class="num">Mid</th><th class="num">Max</th><th>Source</th>{% if editable %}<th></th>{% endif %}</tr></thead>
+      <tbody>{% for b in rows %}
+        <tr><td>{{ b.role }}</td><td>{{ b.level }}</td><td>{{ b.city_tier }}</td>
+          <td class="num">{{ "%.1f"|format(b.min_lpa) }}</td><td class="num highlight">{{ "%.1f"|format(b.mid_lpa) }}</td><td class="num">{{ "%.1f"|format(b.max_lpa) }}</td>
+          <td><span class="sub">{{ b.source }}</span></td>
+          {% if editable %}<td><form method="POST">{{ csrf() }}<input type="hidden" name="action" value="delete"><input type="hidden" name="band_id" value="{{ b.id }}"><input type="hidden" name="filter_role" value="{{ role_filter }}">
+            <button class="btn btn-ghost btn-sm" type="submit" aria-label="Delete band"><i class="fas fa-trash"></i></button></form></td>{% endif %}
+        </tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted small">No bands yet.{% if editable %} Add one, or fill from demo data above.{% endif %}</p>{% endif %}
+  </div>
+
+  {% if editable %}
+  <div class="panel">
+    <h2><i class="fas fa-plus"></i> Add or update a band</h2>
+    <form method="POST">
+      {{ csrf() }}<input type="hidden" name="filter_role" value="{{ role_filter }}">
+      <div class="form-grid">
+        <div class="form-group full-width"><label for="b-role">Role</label><select id="b-role" name="role" required>
+          {% for fam, rs in roles.items() %}<optgroup label="{{ fam }}">{% for r in rs %}<option {% if r == role_filter %}selected{% endif %}>{{ r }}</option>{% endfor %}</optgroup>{% endfor %}</select></div>
+        <div class="form-group"><label for="b-level">Level</label><select id="b-level" name="level">{% for l in levels %}<option>{{ l }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label for="b-tier">City tier</label><select id="b-tier" name="city_tier">{% for t in tiers %}<option>{{ t }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label for="b-min">Min (LPA)</label><input id="b-min" type="number" step="0.1" name="min_lpa" required></div>
+        <div class="form-group"><label for="b-mid">Midpoint (LPA)</label><input id="b-mid" type="number" step="0.1" name="mid_lpa" required></div>
+        <div class="form-group"><label for="b-max">Max (LPA)</label><input id="b-max" type="number" step="0.1" name="max_lpa" required></div>
+        <div class="form-submit"><button class="btn btn-primary" type="submit">Save band</button></div>
+      </div>
+    </form>
+    <p class="muted small" style="margin-top:12px;">Saving a band for an existing role/level/tier replaces it. Bands are read when a benchmark is generated, so refresh the benchmark on open offers to pick up changes.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

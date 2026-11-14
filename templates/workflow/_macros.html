@@ -1,0 +1,60 @@
+{% macro status(s) -%}
+<span class="status-badge status-{{ s }}">{{ status_labels.get(s, s) }}</span>
+{%- endmacro %}
+
+{% macro csrf() -%}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{%- endmacro %}
+
+{% macro check_icon(s) -%}
+{%- if s == 'pass' -%}<i class="fas fa-circle-check ci-icon"></i>
+{%- elif s == 'info' -%}<i class="fas fa-circle-info ci-icon"></i>
+{%- elif s == 'warn' -%}<i class="fas fa-triangle-exclamation ci-icon"></i>
+{%- elif s == 'exception' -%}<i class="fas fa-user-shield ci-icon"></i>
+{%- else -%}<i class="fas fa-ban ci-icon"></i>{%- endif -%}
+{%- endmacro %}
+
+{% macro demo_badge(bm) -%}
+{%- if bm.data_mode == 'demo' -%}<span class="badge badge-warning demo-tag" title="Synthetic benchmark-calibrated data"><i class="fas fa-flask"></i> Demo data - not for live hiring decisions</span>{%- endif -%}
+{%- endmacro %}
+
+{# Range chart. What it draws depends on confidence (bm.display.mode):
+   full     P25/P50/P75 ticks, P25-P75 fill, target
+   widened  same, with the fill widened to the uncertainty range
+   broad    broad band only - no quantiles, no target
+   none     nothing; a note instead #}
+{% macro range_chart(bm, proposed=None, pin_id=None) -%}
+{%- set d = bm.display -%}
+{%- if d.mode == 'none' -%}
+<div class="mrange-none" {% if pin_id %}id="{{ pin_id }}"{% endif %}><i class="fas fa-ban"></i> No market range: not enough reliable data. Enter the package manually.</div>
+{%- else -%}
+{%- set lo_candidates = [d.lo * 0.92] + ([bm.band.min_lpa * 0.97] if bm.band else []) + ([proposed * 0.97] if proposed else []) -%}
+{%- set hi_candidates = [d.hi * 1.08] + ([bm.band.max_lpa * 1.03] if bm.band else []) + ([proposed * 1.03] if proposed else []) -%}
+{%- set lo = lo_candidates | min -%}
+{%- set hi = hi_candidates | max -%}
+<div class="mrange mrange-{{ d.mode }}" data-lo="{{ lo }}" data-hi="{{ hi }}" {% if pin_id %}id="{{ pin_id }}"{% endif %}>
+  <div class="mrange-track"></div>
+  <div class="mrange-iqr" style="left: {{ meter_pct(d.lo, lo, hi) }}%; width: {{ meter_pct(d.hi, lo, hi) - meter_pct(d.lo, lo, hi) }}%;"></div>
+  {% if bm.band %}<div class="mrange-band" style="left: {{ meter_pct(bm.band.min_lpa, lo, hi) }}%; width: {{ meter_pct(bm.band.max_lpa, lo, hi) - meter_pct(bm.band.min_lpa, lo, hi) }}%;" title="Internal band"></div>{% endif %}
+  {% if d.show_quantiles %}
+    {% for q, v in [('P25', bm.p25), ('P50', bm.p50), ('P75', bm.p75)] %}
+      <div class="mrange-tick" style="left: {{ meter_pct(v, lo, hi) }}%;"></div>
+      <div class="mrange-tick-label{% if q == 'P50' %} alt{% endif %}" style="left: {{ meter_pct(v, lo, hi) }}%;">{{ q }} {{ "%.1f"|format(v) }}</div>
+    {% endfor %}
+  {% else %}
+    <div class="mrange-tick-label" style="left: {{ meter_pct(d.lo, lo, hi) }}%;">{{ "%.1f"|format(d.lo) }}</div>
+    <div class="mrange-tick-label" style="left: {{ meter_pct(d.hi, lo, hi) }}%;">{{ "%.1f"|format(d.hi) }}</div>
+  {% endif %}
+  {% if d.show_target %}<div class="mrange-tick mrange-target" style="left: {{ meter_pct(bm.target, lo, hi) }}%;" title="Recommended target"></div>{% endif %}
+  {% if proposed is not none %}
+  <div class="mrange-pin" style="left: {{ meter_pct(proposed, lo, hi) }}%;"><span class="pin-label">{{ "%.1f"|format(proposed) }}</span><i></i></div>
+  {% endif %}
+</div>
+<div class="legend">
+  <span class="lg-iqr">{{ {'full': 'P25-P75 market', 'widened': 'Market range, widened for uncertainty', 'broad': 'Broad band only (low confidence)'}[d.mode] }}</span>
+  {% if d.show_target %}<span class="lg-target">Target {{ "%.1f"|format(bm.target) }} (P{{ bm.target_percentile|int }})</span>{% endif %}
+  {% if bm.band %}<span class="lg-band">Internal band {{ "%.1f"|format(bm.band.min_lpa) }}-{{ "%.1f"|format(bm.band.max_lpa) }}</span>{% endif %}
+  {% if proposed is not none %}<span class="lg-pin">Proposed cash CTC</span>{% endif %}
+</div>
+{%- endif -%}
+{%- endmacro %}

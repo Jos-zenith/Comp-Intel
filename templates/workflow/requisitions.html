@@ -1,0 +1,45 @@
+{% extends "_app_shell.html" %}
+{% from "workflow/_macros.html" import csrf with context %}
+{% block title %}Requisitions — CompIntel{% endblock %}
+{% block topbar_title %}Requisitions{% endblock %}
+
+{% block content %}
+<div class="wf-grid">
+  <div class="panel">
+    <h2><i class="fas fa-briefcase"></i> Open roles</h2>
+    {% if rows %}
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Role</th><th>City</th><th class="num">Budget</th><th>Hiring manager</th><th class="num">Offers</th><th></th></tr></thead>
+      <tbody>{% for q in rows %}
+        <tr><td>{{ q.role }}<span class="sub">{{ q.level }} - {{ q.employment_type }} - {{ q.openings }} opening{{ 's' if q.openings != 1 }}{% if q.notes %} - {{ q.notes }}{% endif %}</span></td>
+          <td>{{ q.city }}</td><td class="num">{{ q.budget_max_lpa|lpa(1) }}</td><td>{{ q.hm_name or '-' }}</td><td class="num">{{ q.offer_count }}</td>
+          <td>{% if wf_can('create_offer') %}<a class="btn btn-outline btn-sm" href="{{ url_for('wf.offer_new', requisition_id=q.id) }}">New offer</a>{% endif %}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted small">No requisitions yet.</p>{% endif %}
+  </div>
+
+  {% if wf_can('manage_requisitions') %}
+  <div class="panel">
+    <h2><i class="fas fa-plus"></i> New requisition</h2>
+    <form method="POST">
+      {{ csrf() }}
+      <div class="form-grid">
+        <div class="form-group full-width"><label for="q-role">Role</label><select id="q-role" name="role" required>
+          {% for fam, rs in roles.items() %}<optgroup label="{{ fam }}">{% for r in rs %}<option>{{ r }}</option>{% endfor %}</optgroup>{% endfor %}</select></div>
+        <div class="form-group"><label for="q-level">Level</label><select id="q-level" name="level">{% for l in levels %}<option>{{ l }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label for="q-city">City</label><select id="q-city" name="city">
+          {% for c in locations %}<option>{{ c }}</option>{% endfor %}
+          {% for c in cities if c not in locations %}<option>{{ c }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label for="q-budget">Max cash CTC budget (LPA)</label><input id="q-budget" type="number" step="0.1" name="budget_max_lpa"></div>
+        <div class="form-group"><label for="q-open">Openings</label><input id="q-open" type="number" min="1" name="openings" value="1"></div>
+        <div class="form-group full-width"><label for="q-emp">Employment type</label><select id="q-emp" name="employment_type">{% for e in employment_types %}<option>{{ e }}</option>{% endfor %}</select></div>
+        <div class="form-group full-width"><label for="q-hm">Hiring manager</label><select id="q-hm" name="hiring_manager_id"><option value="">-</option>{% for u in hms %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}</select></div>
+        <div class="form-group full-width"><label for="q-notes">Notes</label><input id="q-notes" name="notes" maxlength="500"></div>
+        <div class="form-submit"><button class="btn btn-primary" type="submit">Create requisition</button></div>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

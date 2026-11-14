@@ -1,0 +1,70 @@
+{% extends "_app_shell.html" %}
+{% block title %}Outcomes &amp; insights — CompIntel{% endblock %}
+{% block topbar_title %}Outcomes &amp; insights{% endblock %}
+{% block topbar_actions %}
+  {% if wf_can('record_outcome') %}<a class="btn btn-outline btn-sm" href="{{ url_for('wf.outcome_external') }}"><i class="fas fa-file-import"></i> Add outside offer</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="stat-grid" style="margin-bottom:18px;">
+  <div class="stat-cell"><div class="k">Accepted in P25-P75</div><div class="v accent">{{ kpis.north_star }}</div><div class="s">North-star (in-app offers)</div></div>
+  <div class="stat-cell"><div class="k">Acceptance rate</div><div class="v">{{ kpis.acceptance_rate ~ '%' if kpis.acceptance_rate is not none else '-' }}</div><div class="s">accepted / (accepted + declined)</div></div>
+  <div class="stat-cell"><div class="k">P25-P75 coverage</div><div class="v">{{ kpis.in_range_pct ~ '%' if kpis.in_range_pct is not none else '-' }}</div><div class="s">accepted offers with a recommendation</div></div>
+  <div class="stat-cell"><div class="k">Shared observations</div><div class="v">{{ contributed }}</div><div class="s">data sharing {{ 'on' if share else 'off' }}</div></div>
+</div>
+
+<div class="wf-grid">
+<div class="panel">
+  <h2><i class="fas fa-flag"></i> Pilot readiness</h2>
+  <p class="panel-sub">Phase 1 exit criteria: enough real, consented offer data to drop the demo model. Manage partner data under <a href="{{ url_for('wf.network_page') }}">Benchmark data</a>.</p>
+  <table class="data-table"><tbody>
+    {% for it in readiness.criteria %}
+      <tr><td>{{ it.label }}</td><td class="num">{{ it.value }}</td><td class="num muted small">target {{ it.target }}</td>
+        <td>{% if it.met %}<span class="badge badge-success">met</span>{% else %}<span class="badge badge-warning">not yet</span>{% endif %}</td></tr>
+    {% endfor %}
+  </tbody></table>
+</div>
+<div class="panel">
+  <h2><i class="fas fa-handshake"></i> Negotiation telemetry</h2>
+  <p class="panel-sub">Accepted-hire data alone misses offers that were countered or lost. These come from this workspace's outcomes.</p>
+  <div class="cost-row"><span>Offers with a candidate counter</span><span>{{ telemetry.counter_rate ~ '%' if telemetry.counter_rate is not none else '-' }} <span class="muted small">({{ telemetry.countered }} of {{ telemetry.decided }})</span></span></div>
+  <div class="cost-row"><span>Median counter ask vs initial offer</span><span>{{ "%+.1f"|format(telemetry.median_counter_ask_pct) ~ '%' if telemetry.median_counter_ask_pct is not none else '-' }}</span></div>
+  <div class="cost-row"><span>Median final vs initial (accepted)</span><span>{{ "%+.1f"|format(telemetry.median_uplift_pct) ~ '%' if telemetry.median_uplift_pct is not none else '-' }} <span class="muted small">(n={{ telemetry.uplift_n }})</span></span></div>
+  <div class="cost-row"><span>Declines with a recorded reason (this workspace)</span><span>{{ telemetry.decline_reason_capture ~ '%' if telemetry.decline_reason_capture is not none else '-' }}</span></div>
+  <div class="cost-row"><span>Outcomes recorded for approved in-app offers</span><span>{{ kpis.outcome_coverage ~ '%' if kpis.outcome_coverage is not none else '-' }} <span class="muted small">target 80%</span></span></div>
+  <div class="cost-row"><span>Median hours, request to approval</span><span>{{ kpis.median_hours_to_approval if kpis.median_hours_to_approval is not none else '-' }}</span></div>
+</div>
+</div>
+
+<div class="panel">
+  <h2><i class="fas fa-table"></i> Acceptance and calibration</h2>
+  <div class="tabs">
+    {% for d, label in [('role', 'By role'), ('level', 'By level'), ('city', 'By city'), ('health_band', 'By company health'), ('employment_type', 'By employment type'), ('segment', 'By source')] %}
+      <a class="tab {% if dim == d %}active{% endif %}" href="{{ url_for('wf.insights', by=d) }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+  {% if table %}
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>{{ {'health_band': 'Company health band', 'employment_type': 'Employment type', 'segment': 'Source'}.get(dim, dim|title) }}</th><th class="num">Offers</th><th class="num">Accepted</th><th class="num">Declined</th><th class="num">Acceptance</th><th class="num">In P25-P75</th><th class="num">Median accepted</th></tr></thead>
+    <tbody>{% for r in table %}
+      <tr><td>{{ r.key }}</td><td class="num">{{ r.total }}</td><td class="num">{{ r.accepted }}</td><td class="num">{{ r.declined }}</td>
+        <td class="num">{{ r.acceptance ~ '%' if r.acceptance is not none else '-' }}</td>
+        <td class="num">{{ r.coverage ~ '%' if r.coverage is not none else '-' }}</td>
+        <td class="num">{{ r.median_final|lpa(1) }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  <p class="muted small" style="margin-top:8px;">P25-P75 coverage counts accepted offers that went through CompIntel and had a model range (outside offers and manually entered packages have none). It's the calibration check from the PRD: for a well-calibrated benchmark, about half of accepted offers land inside the model's P25-P75. {% if mode == 'demo' %}Here those ranges come from synthetic demo data, so this shows how the measurement works, not real calibration.{% else %}Offers benchmarked in pilot or production use observed-offer ranges, so their coverage is a real calibration measure; older demo-mode offers in the same table are not.{% endif %}</p>
+  {% else %}<p class="muted small">No outcomes yet.</p>{% endif %}
+</div>
+
+{% if reasons %}
+<div class="panel">
+  <h2><i class="fas fa-comment-slash"></i> Decline reasons</h2>
+  {% set top = reasons[0][1] %}
+  {% for reason, n in reasons %}
+    <div class="explain-row"><div class="explain-row-top"><span class="explain-row-label">{{ reason }}</span><span class="explain-row-delta down">{{ n }}</span></div>
+      <div class="explain-bar-track"><div class="explain-bar-fill down" style="width: {{ n / top * 100 }}%;"></div></div></div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

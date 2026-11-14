@@ -1,0 +1,52 @@
+{% extends "site/_base.html" %}
+{% from "site/_brand.html" import icon, demo_label with context %}
+{% block title %}Benchmarks, cohorts and confidence — CompIntel{% endblock %}
+
+{% block content %}
+<section class="mk-section-tight">
+  <div class="mk-wrap mk-section-head">
+    <div class="mk-eyebrow">Benchmarks</div>
+    <h1 style="font-size:clamp(1.8rem,3.8vw,2.6rem);">A benchmark without context is not a decision.</h1>
+    <p class="mk-lead" style="margin-top:10px;">CompIntel shows the peer cohort, sample size, data vintage, and confidence behind every recommendation.</p>
+    <div class="mk-cta-row"><a class="mk-btn mk-btn-primary" href="{{ url_for('mk.pilot', **{'from': 'benchmarks'}) }}">Request pilot access</a></div>
+  </div>
+</section>
+
+<section class="mk-section-tight" style="padding-top:0;">
+  <div class="mk-wrap">
+    <div class="mk-demo-banner" role="note">{{ icon('demo', 20) }}<span><strong>Where the data comes from today.</strong> Demo workspaces and this website use a synthetic dataset calibrated to published Indian SaaS pay ranges. It is never presented as market truth: every benchmark built from it says "Demo data &mdash; not for live hiring decisions". Pilot workspaces switch the synthetic model off and benchmark only from real, consented offers.</span></div>
+  </div>
+</section>
+
+<section class="mk-section-tight">
+  <div class="mk-wrap mk-grid mk-grid-3">
+    <div class="mk-card">{{ icon('benchmark') }}<h3>What we benchmark</h3><p>Cash CTC at P25, P50 and P75 for a role, level, city and funding stage, plus an ESOP grant range. Company health never moves the market range; it moves where you aim inside it.</p></div>
+    <div class="mk-card">{{ icon('cohort') }}<h3>Peer cohort</h3><p>The exact cohort is shown, e.g. "Software Engineer · Senior · Tier 1 SaaS Hub · Series A". If it's too small it widens step by step, and the widening is labelled.</p></div>
+    <div class="mk-card">{{ icon('runway') }}<h3>Observations and recency</h3><p>Every benchmark shows the observation count, the number of companies behind it, and the data period. Old data lowers confidence.</p></div>
+    <div class="mk-card">{{ icon('confidence') }}<h3>Confidence changes the output</h3><p>High: full range and a target. Medium: a widened range. Low: a broad band, no target, and an acknowledgment. Insufficient: no recommendation at all.</p></div>
+    <div class="mk-card">{{ icon('outcome') }}<h3>Offer-outcome telemetry</h3><p>Payroll data only sees people who accepted. CompIntel also records counters, declines and decline reasons, so the range reflects where offers actually clear.</p></div>
+    <div class="mk-card">{{ icon('consent') }}<h3>Privacy thresholds</h3><p>A real-data range appears only when a cohort has at least 10 accepted offers from at least 3 companies. Companies are hashed; candidates are never named.</p></div>
+  </div>
+</section>
+
+<section class="mk-section mk-section-alt">
+  <div class="mk-wrap mk-split">
+    <div>
+      <div class="mk-eyebrow">Give to get</div>
+      <h2>Contribute anonymised outcomes. Get private benchmarks.</h2>
+      <p class="mk-lead">Design partners share consented, anonymised offer outcomes and receive role-specific benchmarks for their open roles. A partner can withdraw its data at any time; it stops feeding benchmarks immediately.</p>
+    </div>
+    <div class="mk-table-wrap">
+      <table class="mk-table">
+        <thead><tr><th scope="col">Shared (with consent)</th><th scope="col">Never shared</th></tr></thead>
+        <tbody>
+          <tr><td>Role, level, city tier</td><td>Candidate names or emails</td></tr>
+          <tr><td>Initial, counter and final cash CTC</td><td>Your company's name or domain</td></tr>
+          <tr><td>ESOP grant, outcome, decline reason</td><td>Cash, burn, ARR or other financials</td></tr>
+          <tr><td>Stage, employee / ARR / NDR bands</td><td>Internal bands and approval notes</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

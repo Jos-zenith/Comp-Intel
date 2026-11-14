@@ -1,0 +1,49 @@
+{% extends "_app_shell.html" %}
+{% block title %}Offer summary — {{ c.company_name }}{% endblock %}
+{% block topbar_title %}Candidate-facing summary{% endblock %}
+
+{% block content %}
+<div class="btn-row no-print" style="margin-bottom:14px;">
+  <a href="{{ url_for('wf.offer_detail', request_id=req.id) }}"><i class="fas fa-arrow-left"></i> Back to offer</a>
+  <a class="btn btn-outline btn-sm" href="?format=pdf"><i class="fas fa-file-pdf"></i> Download PDF</a>
+  <button class="btn btn-ghost btn-sm" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+  <span class="muted small">Contains only the package. No benchmarks, peer data, internal bands or model details.</span>
+</div>
+{% if ack %}<p class="muted small no-print" style="margin-bottom:10px;"><i class="fas fa-check"></i> CTC warnings acknowledged by {{ ack.user_name }} on {{ ack.ts|dt }} UTC.</p>{% endif %}
+<article class="candidate-doc{% if c.demo %} is-demo{% endif %}">
+  {% if c.demo %}<div class="sample-stamp">SAMPLE - NOT A REAL OFFER</div>{% endif %}
+  <h2>{{ c.company_name }}</h2>
+  <p>{% if c.candidate_name %}Prepared for {{ c.candidate_name }} - {% endif %}{{ c.role }} ({{ c.level }}), {{ c.city }}{% if c.start_date %} - proposed start {{ c.start_date }}{% endif %}</p>
+  <h3>Annual cash CTC: Rs.{{ "{:,.2f}".format(c.package.cash_ctc) }} LPA</h3>
+  <table>
+    {% for r in c.rows %}<tr><td>{{ r.component }}</td><td>Rs.{{ "{:,}".format(r.inr) }}</td></tr>{% endfor %}
+  </table>
+  {% set one = [('joining_bonus', 'Joining bonus'), ('relocation', 'Relocation support'), ('notice_buyout', 'Notice-period buyout'), ('other_one_time', 'Other one-time')] %}
+  {% if c.package.joining_bonus or c.package.relocation or c.package.notice_buyout or c.package.other_one_time %}
+  <h3>One-time components</h3>
+  <table>{% for k, label in one if c.package[k] %}<tr><td>{{ label }}</td><td>Rs.{{ "{:,.2f}".format(c.package[k]) }} lakh</td></tr>{% endfor %}</table>
+  {% endif %}
+  {% if c.package.esop_options %}
+  <h3>Employee stock options</h3>
+  <table>
+    <tr><td>Options granted</td><td>{{ "{:,}".format(c.package.esop_options) }}</td></tr>
+    <tr><td>Vesting</td><td>{{ c.package.vesting_years|round(1) }} years, {{ c.package.cliff_months }}-month cliff</td></tr>
+    {% if c.esop_value_lakh %}<tr><td>Value at current FMV (Rs.{{ "{:,.0f}".format(c.fmv_per_share) }}/share)</td><td>Rs.{{ "{:,.2f}".format(c.esop_value_lakh) }} lakh</td></tr>{% endif %}
+    {% set es = c.esop_scenarios %}
+    {% if es %}
+    <tr><td>Strike price</td><td>Rs.{{ "{:,.2f}".format(es.strike_price_inr) }} per option</td></tr>
+    <tr><td>Cost to exercise all options</td><td>Rs.{{ "{:,.2f}".format(es.exercise_cost_lakh) }} lakh</td></tr>
+    {% endif %}
+  </table>
+  {% if es %}
+  <h3>What the options could be worth</h3>
+  <table>
+    {% for s in es.scenarios %}<tr><td>{{ s.name }} ({{ s.exit_multiple }}x today's FMV)</td><td>Rs.{{ "{:,.2f}".format(s.gross_lakh) }} lakh before tax{% if s.underwater %} - no gain{% endif %}</td></tr>{% endfor %}
+  </table>
+  <p class="fineprint">Each scenario assumes {{ es.future_dilution_pct|int }}% dilution from future funding rounds before a sale or IPO, and is shown before tax. {{ es.label }}</p>
+  {% endif %}
+  <p class="fineprint">Option value depends on the company's future valuation and a liquidity event, and is not guaranteed.</p>
+  {% endif %}
+  <p class="fineprint">Indicative summary for discussion. The signed offer letter governs. Variable pay is subject to the applicable plan.</p>
+</article>
+{% endblock %}

@@ -1,0 +1,153 @@
+{% extends "_app_shell.html" %}
+{% from "workflow/_macros.html" import csrf with context %}
+{% block title %}Company &amp; metrics — CompIntel{% endblock %}
+{% block topbar_title %}{{ 'Company & metrics' if company else 'Set up your workspace' }}{% endblock %}
+
+{% block content %}
+{% set editable_profile = wf_can('edit_company_profile') %}
+{% if not company %}
+<div class="panel" style="max-width:820px;">
+  <h2><i class="fas fa-rocket"></i> Create your workspace</h2>
+  <p class="panel-sub">Funding stage, headcount, ARR band and hiring locations are enough for a first, provisional benchmark. Detailed metrics can come later.</p>
+  {% if not editable_profile %}
+    <p class="flash flash-error"><i class="fas fa-lock"></i> Only an Admin can create the workspace. Switch to the Admin demo user in the sidebar.</p>
+  {% else %}
+  <form method="POST" action="{{ url_for('wf.load_demo') }}" style="margin-bottom:18px;">
+    {{ csrf() }}
+    <button class="btn btn-outline" type="submit"><i class="fas fa-wand-magic-sparkles"></i> Load the demo workspace instead</button>
+    <span class="muted small">&nbsp;Sample Series A company with metrics history, bands, requisitions and past outcomes.</span>
+  </form>
+  {% endif %}
+{% endif %}
+
+{% if company %}
+<div class="wf-grid">
+<div>
+<div class="panel">
+  <h2><i class="fas fa-heart-pulse"></i> Health profile</h2>
+  <div class="stat-grid">
+    <div class="stat-cell"><div class="k">Health score</div><div class="v accent">{{ profile.health_score|round|int }}/100</div><div class="s">{{ profile.health_band }}</div></div>
+    <div class="stat-cell"><div class="k">From real metrics</div><div class="v">{{ (profile.coverage * 100)|round|int }}%</div><div class="s">rest uses {{ company.funding_stage }} default ({{ profile.stage_default_health|round|int }})</div></div>
+    <div class="stat-cell"><div class="k">Metrics complete</div><div class="v">{{ (profile.completeness * 100)|round|int }}%</div><div class="s">{% if snap %}updated {{ age }} days ago{% else %}provisional (profile only){% endif %}</div></div>
+    <div class="stat-cell"><div class="k">Formula</div><div class="v" style="font-size:0.85rem;">{{ profile.version }}</div><div class="s">versioned with every snapshot</div></div>
+  </div>
+  <table class="data-table" style="margin-top:14px;">
+    <thead><tr><th>Component</th><th class="num">Weight</th><th class="num">Score</th><th>Source</th></tr></thead>
+    <tbody>
+    {% set labels = {'rule_of_40': 'Rule of 40', 'ndr': 'NDR', 'ltv_cac': 'LTV:CAC', 'arr_per_employee': 'ARR per employee'} %}
+    {% for key, c in profile.components.items() %}
+      <tr><td>{{ labels[key] }}</td><td class="num">{{ (c.weight * 100)|int }}%</td><td class="num">{{ c.score }}</td>
+          <td>{% if c.filled %}<span class="badge badge-warning">stage default</span>{% else %}<span class="badge badge-success">your metrics</span>{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if profile.missing_impact %}
+  <p class="small" style="margin-top:12px;"><strong>Missing metrics and their impact on confidence:</strong></p>
+  <ul class="driver-list">
+    {% for m in profile.missing_impact %}<li>{{ m.component }} ({{ m.weight_pct }}% of the score) - needs {{ m.needs }}.</li>{% endfor %}
+  </ul>
+  {% endif %}
+  <p class="disclaimer">{{ formula }} The weighting is an authored rubric, not an industry standard. ARR per employee is converted at Rs.{{ settings.inr_per_usd }}/USD to compare with the $200k benchmark.</p>
+</div>
+
+<div class="panel">
+  <h2><i class="fas fa-chart-line"></i> Update metrics</h2>
+  <p class="panel-sub">Every save creates a new, immutable snapshot. Leave anything you don't know blank.</p>
+  {% if wf_can('edit_metrics') %}
+  {% if metrics_request %}
+  <div class="flash flash-warn" style="margin:0 0 14px;"><i class="fas fa-inbox"></i> {{ metrics_request.requester }} asked for metrics on {{ metrics_request.requested_at|dt }}{% if metrics_request.note %}: "{{ metrics_request.note }}"{% endif %}. Saving a snapshot closes the request and tells recruiters.</div>
+  {% endif %}
+  <form method="POST" action="{{ url_for('wf.company_metrics_save') }}">
+    {{ csrf() }}
+    <div class="form-grid">
+      {% for field, label, unit, lo, hi in metric_fields %}
+        <div class="form-group"><label for="m-{{ field }}">{{ label }} <span class="muted">({{ unit }})</span></label>
+          <input id="m-{{ field }}" type="number" step="any" name="{{ field }}" value="{{ snap_inputs.get(field) if snap_inputs.get(field) is not none else '' }}"></div>
+      {% endfor %}
+      <div class="form-group"><label for="m-arr_band">ARR band (if exact ARR unknown)</label>
+        <select id="m-arr_band" name="arr_band"><option value="">-</option>
+          {% for b in arr_bands %}<option value="{{ b }}" {% if snap_inputs.get('arr_band') == b %}selected{% endif %}>{{ b }}</option>{% endfor %}
+        </select></div>
+      <div class="form-submit"><button class="btn btn-primary" type="submit">Save new snapshot</button></div>
+    </div>
+  </form>
+  <hr class="divider" style="margin:18px 0;">
+  <form method="POST" action="{{ url_for('wf.company_metrics_upload') }}" enctype="multipart/form-data" class="inline-form">
+    {{ csrf() }}
+    <div class="form-group" style="flex:1;"><label for="m-file">Or upload the CSV template</label><input id="m-file" type="file" name="file" accept=".csv,text/csv"></div>
+    <button class="btn btn-outline" type="submit"><i class="fas fa-upload"></i> Upload</button>
+    <a class="btn btn-ghost" href="{{ url_for('wf.company_metrics_template') }}"><i class="fas fa-download"></i> Template</a>
+  </form>
+  {% else %}
+    <p class="muted small">Admin, Finance and People Ops can update metrics. You don't need them to benchmark: the market range never uses them, they only fine-tune where offers aim inside it.</p>
+    {% if wf_can('request_metrics') %}
+      {% if metrics_request %}
+        <p class="small"><i class="fas fa-hourglass-half"></i> Requested by {{ metrics_request.requester }} on {{ metrics_request.requested_at|dt }}; waiting for Finance.</p>
+      {% else %}
+      <form method="POST" action="{{ url_for('wf.request_metrics') }}">
+        {{ csrf() }}
+        <input type="hidden" name="next" value="{{ url_for('wf.company') }}">
+        <div class="form-group"><label for="mr-note">Note for Finance (optional)</label><input id="mr-note" type="text" name="note" maxlength="300" placeholder="e.g. Need this before Friday's offers"></div>
+        <button class="btn btn-primary btn-sm" type="submit"><i class="fas fa-paper-plane"></i> Ask Finance for metrics</button>
+      </form>
+      {% endif %}
+    {% endif %}
+  {% endif %}
+</div>
+</div>
+
+<div>
+{% endif %}
+
+<div class="panel">
+  <h2><i class="fas fa-building"></i> Company profile</h2>
+  <form method="POST" action="{{ url_for('wf.company_profile_save') }}">
+    {{ csrf() }}
+    <fieldset {% if not editable_profile %}disabled{% endif %} style="border:0;">
+    <div class="form-grid">
+      <div class="form-group"><label for="c-name">Company name</label><input id="c-name" name="name" required value="{{ company.name if company else '' }}"></div>
+      <div class="form-group"><label for="c-domain">Work email domain</label><input id="c-domain" name="domain" placeholder="acme.in" value="{{ company.domain or '' if company else '' }}"></div>
+      <div class="form-group"><label for="c-sector">Sector</label><input id="c-sector" name="sector" value="{{ company.sector if company else 'B2B SaaS' }}"></div>
+      <div class="form-group"><label for="c-hq">HQ city</label>
+        <select id="c-hq" name="hq_city"><option value="">-</option>{% for c in cities %}<option {% if company and company.hq_city == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+      <div class="form-group"><label for="c-stage">Funding stage</label>
+        <select id="c-stage" name="funding_stage" required><option value="" disabled {% if not company %}selected{% endif %}>Select</option>{% for s in funding_stages %}<option {% if company and company.funding_stage == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+      <div class="form-group"><label for="c-employees">Employees</label><input id="c-employees" type="number" min="1" name="employee_count" required value="{{ company.employee_count if company else '' }}"></div>
+      <div class="form-group"><label for="c-arrband">ARR band</label>
+        <select id="c-arrband" name="arr_band"><option value="">Not sure</option>{% for b in arr_bands %}<option {% if company and company.arr_band == b %}selected{% endif %}>{{ b }}</option>{% endfor %}</select></div>
+      <div class="form-group"><label for="c-market">Target market</label>
+        <select id="c-market" name="target_market" required>{% for m in target_markets %}<option {% if company and company.target_market == m %}selected{% endif %}>{{ m }}</option>{% endfor %}</select></div>
+      <div class="form-group"><label for="c-pricing">Pricing model</label>
+        <select id="c-pricing" name="pricing_model" required>{% for p in pricing_models %}<option {% if company and company.pricing_model == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></div>
+      <div class="form-group"><label for="c-work">Default work model</label>
+        <select id="c-work" name="work_model">{% for w in ['Hybrid', 'In-office', 'Remote'] %}<option {% if company and company.work_model == w %}selected{% endif %}>{{ w }}</option>{% endfor %}</select></div>
+      <div class="form-group full-width"><label>Hiring locations</label>
+        <div style="display:flex; flex-wrap:wrap; gap:6px 16px;">
+        {% for c in cities %}<label class="checkbox-row" style="font-weight:500; margin:0;"><input type="checkbox" name="hiring_locations" value="{{ c }}" {% if c in locations %}checked{% endif %}> {{ c }}</label>{% endfor %}
+        </div></div>
+      {% if editable_profile %}<div class="form-submit"><button class="btn btn-primary" type="submit">{{ 'Save profile' if company else 'Create workspace' }}</button></div>{% endif %}
+    </div>
+    </fieldset>
+  </form>
+</div>
+
+{% if company %}
+<div class="panel">
+  <h2><i class="fas fa-clock-rotate-left"></i> Metric snapshots</h2>
+  {% if history %}
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>When</th><th>By</th><th>Source</th><th class="num">Health</th><th class="num">Complete</th></tr></thead>
+    <tbody>{% for h in history %}
+      <tr><td>{{ h.created_at|dt }}</td><td>{{ h.user_name or '-' }}</td><td>{{ h.source }}</td>
+          <td class="num">{{ h.health_score|round|int }} <span class="sub">{{ h.health_band }}</span></td><td class="num">{{ (h.completeness * 100)|round|int }}%</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  <p class="muted small" style="margin-top:8px;">Snapshots can't be edited or deleted. Offers keep a link to the snapshot their benchmark used.</p>
+  {% else %}<p class="muted small">No metrics yet. Benchmarks use a provisional health score from the profile above.</p>{% endif %}
+</div>
+</div>
+</div>
+{% else %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,122 @@
+{% extends "_app_shell.html" %}
+{% from "workflow/_macros.html" import status with context %}
+{% block title %}Dashboard — CompIntel{% endblock %}
+{% block topbar_title %}{{ company.name }}{% endblock %}
+{% block topbar_actions %}
+  {% if wf_can('create_offer') %}<a class="btn btn-primary btn-sm" href="{{ url_for('wf.offer_new') }}"><i class="fas fa-plus"></i> New offer</a>{% endif %}
+{% endblock %}
+
+{% block content %}
+{% if not onboarding.dismissed_at and activation and not (activation|selectattr('done')|list|length == activation|length) %}
+<div class="panel onboarding-welcome">
+  <form method="POST" action="{{ url_for('wf.onboarding_dismiss') }}" class="onboarding-dismiss">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-ghost btn-sm" type="submit" aria-label="Hide this guide"><i class="fas fa-xmark"></i> Hide</button>
+  </form>
+  <h2><i class="fas fa-hand-sparkles"></i> Welcome, {{ wf_user.name.split(' ')[0] }}</h2>
+  {% if wf_user.role == 'recruiter' %}
+    <p class="panel-sub">You don't need anyone else to start. Company metrics are optional: the market range never depends on them, they only fine-tune where you aim inside it.</p>
+    <ol class="first-run">
+      <li><strong>Paste a few past offers</strong> (role, level, city, accepted or declined). <a href="{{ url_for('wf.outcome_external') }}">Import</a></li>
+      <li><strong>Benchmark a live candidate.</strong> Aim for under {{ ttv_target }} minutes. <a href="{{ url_for('wf.offer_new') }}">New offer</a></li>
+      <li><strong>Ask Finance for metrics</strong> in one click, and keep working while they fill them in.</li>
+    </ol>
+  {% elif wf_user.role == 'finance' %}
+    <p class="panel-sub">Recruiters can benchmark without you, but company metrics decide where offers aim in the market range and how much goes into ESOP. Enter what you have; blanks fall back to stage defaults.</p>
+  {% elif wf_user.role in ['admin', 'people_ops'] %}
+    <p class="panel-sub">Set up the company, bands and requisitions. Recruiters can get provisional benchmarks before metrics exist, and can ask Finance for metrics themselves.</p>
+  {% else %}
+    <p class="panel-sub">Here's what's waiting for you.</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="stat-grid" style="margin-bottom:18px;">
+  <div class="stat-cell"><div class="k">Accepted in P25-P75</div><div class="v accent">{{ kpis.north_star }}</div><div class="s">North-star: in-app accepted offers</div></div>
+  <div class="stat-cell"><div class="k">Acceptance rate</div><div class="v">{{ kpis.acceptance_rate ~ '%' if kpis.acceptance_rate is not none else '-' }}</div><div class="s">{{ kpis.decided }} decided offers</div></div>
+  <div class="stat-cell"><div class="k">Outcome recorded</div><div class="v">{{ kpis.outcome_coverage ~ '%' if kpis.outcome_coverage is not none else '-' }}</div><div class="s">of approved in-app offers (target 80%)</div></div>
+  <div class="stat-cell"><div class="k">Request to approval</div><div class="v">{{ kpis.median_hours_to_approval ~ ' h' if kpis.median_hours_to_approval is not none else '-' }}</div><div class="s">median</div></div>
+  <div class="stat-cell"><div class="k">Health score</div><div class="v">{{ profile.health_score|round|int }}/100</div><div class="s">{{ profile.health_band }} - {{ (profile.coverage * 100)|round|int }}% real metrics</div></div>
+</div>
+
+<div class="wf-grid">
+  <div>
+    {% if queue %}
+    <div class="panel">
+      <h2><i class="fas fa-list-check"></i> Waiting for you ({{ queue|length }})</h2>
+      <table class="data-table">
+        <tbody>
+        {% for req, sub, state in queue %}
+          <tr>
+            <td><a href="{{ url_for('wf.offer_detail', request_id=req.id) }}">{{ req.candidate_pseudo_id }}</a><span class="sub">{{ req.role }} - {{ req.level }} - {{ req.city }}</span></td>
+            <td>Step {{ state.current_step.step }}<span class="sub">{{ state.current_step.reasons|join(', ') }}</span></td>
+            <td class="num">{{ sub.submitted_at|dt }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="panel">
+      <h2><i class="fas fa-file-signature"></i> Recent offers</h2>
+      {% if recent %}
+      <div class="table-wrap"><table class="data-table">
+        <thead><tr><th>Candidate</th><th>Role</th><th>Status</th><th class="num">Updated</th></tr></thead>
+        <tbody>
+        {% for r in recent %}
+          <tr>
+            <td><a href="{{ url_for('wf.offer_detail', request_id=r.id) }}">{{ r.candidate_pseudo_id }}</a>{% if r.candidate_name and wf_can('view_benchmark') %}<span class="sub">{{ r.candidate_name }}</span>{% endif %}</td>
+            <td>{{ r.role }}<span class="sub">{{ r.level }} - {{ r.city }}</span></td>
+            <td>{{ status(r.status) }}</td>
+            <td class="num">{{ r.updated_at|dt }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+      {% else %}
+        <p class="muted small">No offers yet. {% if wf_can('create_offer') %}<a href="{{ url_for('wf.offer_new') }}">Create the first one</a> - a benchmark is generated as soon as you enter the candidate.{% endif %}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div>
+    {% if activation %}
+    <div class="panel">
+      <h2><i class="fas fa-flag-checkered"></i> Getting started <span class="muted small">{{ activation|selectattr('done')|list|length }}/{{ activation|length }}</span></h2>
+      <ul class="checklist">
+        {% for s in activation %}
+          <li>
+            <i class="fas {{ 'fa-circle-check' if s.done else 'fa-circle' }}"></i>
+            <div class="checklist-body">
+              <a href="{{ s.link }}">{{ s.label }}</a>
+              {% if s.hint and not s.done %}<div class="muted small">{{ s.hint }}</div>{% endif %}
+              {% if s.action == 'request_metrics' and wf_can('request_metrics') %}
+              <form method="POST" action="{{ url_for('wf.request_metrics') }}" style="margin-top:6px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-outline btn-sm" type="submit"><i class="fas fa-paper-plane"></i> Ask Finance</button>
+              </form>
+              {% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+      {% if metrics_request %}<p class="muted small" style="margin-top:10px;"><i class="fas fa-hourglass-half"></i> Metrics requested by {{ metrics_request.requester }} on {{ metrics_request.requested_at|dt }}; waiting for Finance.</p>{% endif %}
+      {% if wf_user.role == 'recruiter' %}
+      <p class="muted small" style="margin-top:10px;">
+        {% if ttv is not none %}Your first benchmark took {{ ttv }} min (target under {{ ttv_target }}).{% else %}Target: first benchmark within {{ ttv_target }} minutes of signing in.{% endif %}
+      </p>
+      {% endif %}
+    </div>
+    {% endif %}
+    <div class="panel">
+      <h2><i class="fas fa-bell"></i> Notifications for {{ wf_roles[wf_user.role] }}</h2>
+      {% if notes %}
+      <ul class="timeline">
+        {% for n in notes %}<li><a href="{{ n.link }}">{{ n.message }}</a><div class="when">{{ n.created_at|dt }}</div></li>{% endfor %}
+      </ul>
+      {% else %}<p class="muted small">Nothing yet. Email notifications aren't part of the demo; everything shows here and in Approvals.</p>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

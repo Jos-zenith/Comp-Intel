@@ -1,0 +1,41 @@
+{% extends "site/_base.html" %}
+{% from "site/_brand.html" import icon with context %}
+{% block title %}Apply for the India SaaS pilot — CompIntel{% endblock %}
+{% block final_cta %}{% endblock %}
+
+{% block content %}
+<section class="mk-section-tight">
+  <div class="mk-wrap mk-split" style="align-items:start;">
+    <div>
+      <div class="mk-eyebrow">India SaaS pilot</div>
+      <h1 style="font-size:clamp(1.8rem,3.8vw,2.5rem);">Apply for the India SaaS pilot</h1>
+      <p class="mk-lead" style="margin-top:10px;">We're working with 10-20 Indian B2B SaaS companies (30-200 people) to replace demo data with real, consented offer outcomes.</p>
+      <ul class="mk-list" style="margin-top:20px;">
+        <li>{{ icon('benchmark', 20) }}<span>Private, role-specific benchmarks for your open roles once enough partners contribute</span></li>
+        <li>{{ icon('runway', 20) }}<span>The full offer workflow: runway impact, CTC checks, ESOP scenarios, approvals, briefs</span></li>
+        <li>{{ icon('consent', 20) }}<span>A data-sharing agreement before any record is imported, and the right to withdraw it</span></li>
+        <li>{{ icon('lock', 20) }}<span>Your financials stay private; only anonymised outcomes are shared</span></li>
+      </ul>
+    </div>
+    <form class="mk-panel mk-form" method="POST" action="{{ url_for('mk.pilot', **({'from': request.args.get('from')} if request.args.get('from') else {})) }}" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ site_csrf_token() }}">
+      <div class="mk-form mk-form-2">
+        <div class="mk-field"><label for="p-name">Your name</label><input id="p-name" name="name" required maxlength="120" autocomplete="name" value="{{ f.get('name', '') }}"></div>
+        <div class="mk-field"><label for="p-email">Work email</label><input id="p-email" name="work_email" type="email" required maxlength="200" autocomplete="email" value="{{ f.get('work_email', '') }}">
+          <p class="hint">A company address, not Gmail or similar.</p></div>
+        <div class="mk-field"><label for="p-company">Company</label><input id="p-company" name="company" required maxlength="160" autocomplete="organization" value="{{ f.get('company', '') }}"></div>
+        <div class="mk-field"><label for="p-persona">Your role</label><select id="p-persona" name="persona" required><option value="">Choose</option>{% for p in personas %}<option {% if f.get('persona') == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></div>
+        <div class="mk-field"><label for="p-emp">Employees</label><select id="p-emp" name="employees" required><option value="">Choose</option>{% for e in employees %}<option {% if f.get('employees') == e %}selected{% endif %}>{{ e }}</option>{% endfor %}</select></div>
+        <div class="mk-field"><label for="p-hires">Tech and GTM hires per year</label><select id="p-hires" name="hires" required><option value="">Choose</option>{% for h in hires %}<option {% if f.get('hires') == h %}selected{% endif %}>{{ h }}</option>{% endfor %}</select></div>
+      </div>
+      <fieldset class="mk-field" style="border:0;">
+        <legend style="font-weight:600; font-size:0.86rem; margin-bottom:6px;">Where you hire (optional)</legend>
+        <div class="mk-checks">{% for c in cities %}<label><input type="checkbox" name="cities" value="{{ c }}" {% if f.getlist is defined and c in f.getlist('cities') %}checked{% endif %}> {{ c }}</label>{% endfor %}</div>
+      </fieldset>
+      <div class="mk-field"><label for="p-notes">Anything we should know (optional)</label><textarea id="p-notes" name="notes" rows="3" maxlength="1000">{{ f.get('notes', '') }}</textarea></div>
+      <label class="mk-check"><input type="checkbox" name="consent" required> <span>CompIntel may store these details and contact me about the pilot. See the <a href="{{ url_for('mk.privacy') }}">privacy policy</a>.</span></label>
+      <div><button class="mk-btn mk-btn-primary" type="submit">Apply for the pilot</button></div>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends "site/_base.html" %}
+{% from "site/_brand.html" import icon, demo_label with context %}
+{% from "site/_decision.html" import decision_card, sample_form with context %}
+{% block title %}CompIntel — Make the right offer without breaking runway{% endblock %}
+
+{% block content %}
+<section class="mk-hero">
+  <div class="mk-wrap mk-hero-grid">
+    <div>
+      <div class="mk-eyebrow" style="color:#6FD3D1;">Pre-offer decisions for Indian B2B SaaS</div>
+      <h1>Make the right offer before it costs you the hire&mdash;or your runway.</h1>
+      <p class="mk-lead" style="margin-top:16px;">CompIntel helps Indian B2B SaaS teams benchmark offers, model cash and ESOP trade-offs, check India CTC rules, and learn from real offer outcomes.</p>
+      <div class="mk-cta-row">
+        <a class="mk-btn mk-btn-amber" href="{{ url_for('mk.sample') }}">{{ icon('benchmark', 20) }} Generate a sample offer benchmark</a>
+        <a class="mk-btn mk-btn-ghost-dark" href="#how-it-works">See how it works</a>
+      </div>
+      <div class="mk-trust">
+        <span>{{ icon('check', 16) }} Built for Indian B2B SaaS teams</span>
+        <span>{{ icon('demo', 16) }} Demo data clearly labelled</span>
+        <span>{{ icon('consent', 16) }} No candidate data required to start</span>
+      </div>
+    </div>
+    <div>
+      {% if s %}{{ decision_card(s) }}{% else %}
+      <div class="mk-decision"><div class="mk-decision-body"><p>The sample benchmark is unavailable right now because the model artifacts aren't loaded.</p></div></div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="mk-section-tight mk-section-alt">
+  <div class="mk-wrap">
+    <h2 style="font-size:1.25rem;">Try it with your role</h2>
+    <p class="mk-fine" style="margin-bottom:14px;">Four questions. No sign-up, no company financials, no candidate name.</p>
+    {{ sample_form(roles, levels, cities, stages) }}
+  </div>
+</section>
+
+<section class="mk-section">
+  <div class="mk-wrap">
+    <div class="mk-section-head">
+      <div class="mk-eyebrow">The problem</div>
+      <h2>Your offer decision should not be a spreadsheet decision.</h2>
+      <p class="mk-lead">Your offer decision is split across salary sites, spreadsheets, ATS approvals, and cap-table tools. CompIntel brings market benchmarks, company affordability, India CTC rules, and ESOP trade-offs into one pre-offer workflow.</p>
+    </div>
+    <div class="mk-grid mk-grid-4">
+      <div class="mk-card">{{ icon('benchmark') }}<h3>Salary sites</h3><p>A median with no cohort, no sample size, and no idea what your company can afford.</p></div>
+      <div class="mk-card">{{ icon('spreadsheet') }}<h3>Spreadsheets</h3><p>Runway maths nobody else can audit, rebuilt for every offer.</p></div>
+      <div class="mk-card">{{ icon('approval') }}<h3>ATS approvals</h3><p>Static internal bands that can't tell a P75 offer from an unaffordable one.</p></div>
+      <div class="mk-card">{{ icon('esop') }}<h3>Cap-table tools</h3><p>Equity administered after the grant, not explained before the offer.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="mk-section mk-section-alt" id="how-it-works">
+  <div class="mk-wrap">
+    <div class="mk-section-head">
+      <div class="mk-eyebrow">Product workflow</div>
+      <h2>From requisition to offer outcome in one workflow.</h2>
+    </div>
+    <div class="mk-grid mk-grid-5">
+      {% for n, ic, title, body in [
+        (1, 'offer', 'Create the offer request', 'Role, level, city and budget preload from the requisition.'),
+        (2, 'benchmark', 'Benchmark', 'P25/P50/P75 with the peer cohort, sample size and confidence shown.'),
+        (3, 'runway', 'Check affordability', 'Cash cost, burn and runway impact for every scenario.'),
+        (4, 'shield', 'Build and check the package', 'Cash, variable, ESOP and one-time pay, checked against CTC rules and policy.'),
+        (5, 'outcome', 'Approve and learn', 'Routed approvals, candidate brief, and the outcome - accepted, countered or declined.')] %}
+      <div class="mk-step"><span class="mk-step-n">{{ n }}</span><h3>{{ icon(ic, 20) }} {{ title }}</h3><p class="mk-fine">{{ body }}</p></div>
+      {% endfor %}
+    </div>
+    <a class="mk-card-link" href="{{ url_for('mk.product') }}">See the full workflow {{ icon('arrow', 18) }}</a>
+  </div>
+</section>
+
+<section class="mk-section">
+  <div class="mk-wrap mk-split">
+    <div>
+      <div class="mk-eyebrow">Affordability</div>
+      <h2>A P75 offer is not automatically affordable.</h2>
+      <p class="mk-lead">Every package shows its annual cash cost, monthly burn and runway impact before it reaches an approver, and anything that takes runway below your floor goes to Finance.</p>
+      <a class="mk-card-link" href="{{ url_for('mk.for_founders') }}">For Founders &amp; Finance {{ icon('arrow', 18) }}</a>
+    </div>
+    {% if s %}
+    <div class="mk-aha">
+      If you offer <b>&#8377;{{ "%.1f"|format(s.aha.to_cash) }} LPA</b> instead of <b>&#8377;{{ "%.1f"|format(s.aha.from_cash) }} LPA</b>, annual cash cost rises by <b>&#8377;{{ "%.1f"|format(s.aha.cost_delta_lakh) }} lakh</b>{% if s.aha.runway_delta is not none %}, runway falls by a further <b>{{ "%.2f"|format(-s.aha.runway_delta) }} months</b>{% endif %}, and the package moves from <b>about P{{ s.aha.from_pct }}</b> to <b>about P{{ s.aha.to_pct }}</b> of the market.{% if s.aha.hire_runway_delta is not none %} The recommended hire on its own takes <b>{{ "%.2f"|format(-s.aha.hire_runway_delta) }} months</b> off your runway.{% endif %}
+      <div style="margin-top:10px;">{{ demo_label() }}</div>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="mk-section mk-section-alt">
+  <div class="mk-wrap mk-grid mk-grid-3">
+    <div class="mk-card">{{ icon('cash') }}<h3>India CTC</h3><p>Model cash CTC, statutory wage, PF, and gratuity before the offer is sent, with the rule version on every check.</p>
+      <a class="mk-card-link" href="{{ url_for('mk.india_ctc') }}">Try the CTC calculator {{ icon('arrow', 18) }}</a></div>
+    <div class="mk-card">{{ icon('esop') }}<h3>ESOP</h3><p>Turn a grant percentage into a candidate-ready equity story: dilution, exercise cost and Conservative / Base / Upside outcomes.</p>
+      <a class="mk-card-link" href="{{ url_for('mk.esop_page') }}">Model an ESOP offer {{ icon('arrow', 18) }}</a></div>
+    <div class="mk-card">{{ icon('outcome') }}<h3>Outcome telemetry</h3><p>Learn from accepted, countered, and rejected offers&mdash;not only closed hires. Declines show where the market actually clears.</p>
+      <a class="mk-card-link" href="{{ url_for('mk.benchmarks') }}">How benchmarks work {{ icon('arrow', 18) }}</a></div>
+  </div>
+</section>
+
+<section class="mk-section">
+  <div class="mk-wrap">
+    <div class="mk-section-head">
+      <div class="mk-eyebrow">Trust</div>
+      <h2>Private by default. Anonymised by design. Clearly labelled demo data.</h2>
+    </div>
+    <div class="mk-grid mk-grid-3">
+      <div class="mk-card">{{ icon('lock') }}<h3>Your financials stay yours</h3><p>Cash, burn and SaaS metrics are tenant-private. They position your offers; they never enter the shared benchmark.</p></div>
+      <div class="mk-card">{{ icon('consent') }}<h3>Consent-gated sharing</h3><p>Outcomes join the benchmark only with consent, without names, and only once enough companies contribute to hide any one of them.</p></div>
+      <div class="mk-card">{{ icon('demo') }}<h3>No synthetic estimate as market truth</h3><p>Today's benchmarks come from a synthetic, calibrated dataset, and every screen that uses it says so.</p></div>
+    </div>
+    <a class="mk-card-link" href="{{ url_for('mk.security') }}">Read the security overview {{ icon('arrow', 18) }}</a>
+  </div>
+</section>
+{% endblock %}

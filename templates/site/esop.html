@@ -1,0 +1,83 @@
+{% extends "site/_base.html" %}
+{% from "site/_brand.html" import icon with context %}
+{% block title %}ESOP scenarios — CompIntel{% endblock %}
+{% block description %}Turn an ESOP grant into a decision candidates can understand: dilution, vesting, exercise cost and illustrative Conservative, Base and Upside outcomes.{% endblock %}
+
+{% block content %}
+<section class="mk-section-tight">
+  <div class="mk-wrap">
+    <div class="mk-eyebrow">ESOP scenarios</div>
+    <h1 style="font-size:clamp(1.8rem,3.8vw,2.6rem);">Turn &ldquo;0.08% equity&rdquo; into a decision candidates can understand.</h1>
+    <p class="mk-lead" style="margin-top:10px;">Model dilution, vesting, exercise cost, and illustrative outcomes before the offer is sent.</p>
+  </div>
+</section>
+
+<section class="mk-section-tight" style="padding-top:0;">
+  <div class="mk-wrap mk-split" style="align-items:start;">
+    <form class="mk-panel mk-form" method="GET" action="{{ url_for('mk.esop_page') }}">
+      <h2 style="font-size:1.25rem;">{{ icon('esop', 22) }} Grant</h2>
+      <fieldset style="border:0;">
+        <legend class="mk-field" style="font-weight:600; font-size:0.86rem; margin-bottom:6px;">Enter the grant as</legend>
+        <div class="mk-checks">
+          <label><input type="radio" name="mode" value="options" {% if form.mode != 'pct' %}checked{% endif %}> Option count</label>
+          <label><input type="radio" name="mode" value="pct" {% if form.mode == 'pct' %}checked{% endif %}> % of fully diluted</label>
+        </div>
+      </fieldset>
+      <div class="mk-form mk-form-2">
+        <div class="mk-field"><label for="e-opt">Options</label><input id="e-opt" name="options" type="number" min="1" step="1" value="{{ form.options }}" inputmode="numeric"></div>
+        <div class="mk-field"><label for="e-pct">Grant (% fully diluted)</label><input id="e-pct" name="grant_pct" type="number" min="0" step="0.001" value="{{ form.grant_pct }}" inputmode="decimal"></div>
+        <div class="mk-field"><label for="e-fds">Fully diluted shares</label><input id="e-fds" name="fds" type="number" min="1" step="1" value="{{ form.fds }}" inputmode="numeric"></div>
+        <div class="mk-field"><label for="e-fmv">Current FMV (&#8377;/share)</label><input id="e-fmv" name="fmv" type="number" min="0" step="0.01" value="{{ form.fmv }}" inputmode="decimal"></div>
+        <div class="mk-field"><label for="e-strike">Strike price (&#8377;/share)</label><input id="e-strike" name="strike" type="number" min="0" step="0.01" value="{{ form.strike }}" inputmode="decimal"></div>
+        <div class="mk-field"><label for="e-dil">Future dilution before exit (%)</label><input id="e-dil" name="dilution" type="number" min="0" max="94" step="1" value="{{ form.dilution }}" inputmode="decimal"></div>
+      </div>
+      <details>
+        <summary class="mk-fine" style="cursor:pointer; font-weight:600;">Scenario assumptions</summary>
+        <div class="mk-form mk-form-2" style="margin-top:10px;">
+          <div class="mk-field"><label for="e-c">Conservative exit (x FMV)</label><input id="e-c" name="conservative" type="number" min="0" step="0.1" value="{{ form.conservative }}"></div>
+          <div class="mk-field"><label for="e-b">Base exit (x FMV)</label><input id="e-b" name="base" type="number" min="0" step="0.1" value="{{ form.base }}"></div>
+          <div class="mk-field"><label for="e-u">Upside exit (x FMV)</label><input id="e-u" name="upside" type="number" min="0" step="0.1" value="{{ form.upside }}"></div>
+          <div class="mk-field"><label for="e-t">Illustrative tax on gains (%)</label><input id="e-t" name="tax" type="number" min="0" max="60" step="1" value="{{ form.tax }}"></div>
+        </div>
+      </details>
+      <div><button class="mk-btn mk-btn-primary" type="submit">Model scenarios</button></div>
+      {% if error %}<p class="mk-error" role="alert">{{ error }}</p>{% endif %}
+    </form>
+
+    <div>
+    {% if r %}
+      <div class="mk-grid mk-grid-2" style="margin-bottom:16px;">
+        <div class="mk-card"><div class="mk-kicker">Grant</div><div class="mk-price">{{ r.options|indian }} <small>options</small></div>
+          <p class="mk-fine">{{ "%.4f"|format(r.ownership_pct) }}% today, {{ "%.4f"|format(r.ownership_after_dilution_pct) }}% after {{ r.future_dilution_pct|int }}% future dilution</p></div>
+        <div class="mk-card"><div class="mk-kicker">Cost to exercise all</div><div class="mk-price">&#8377;{{ "%.2f"|format(r.exercise_cost_lakh) }} <small>lakh</small></div>
+          <p class="mk-fine">{% if r.underwater_now %}<span class="mk-tag mk-tag-red">{{ icon('warning', 14) }} underwater today</span> Strike is at or above FMV.{% else %}Spread today: &#8377;{{ "%.2f"|format(r.spread_now_lakh) }} lakh at current FMV.{% endif %}</p></div>
+      </div>
+      <div class="mk-table-wrap">
+        <table class="mk-table">
+          <thead><tr><th scope="col">Scenario</th><th class="r" scope="col">Exit x FMV</th><th class="r" scope="col">Value / share</th><th class="r" scope="col">Gross gain</th><th class="r" scope="col">After {{ r.tax_rate_pct|int }}% tax</th></tr></thead>
+          <tbody>{% for s in r.scenarios %}
+            <tr><th scope="row">{{ s.name }}{% if s.underwater %} <span class="mk-tag mk-tag-amber">no gain</span>{% endif %}</th><td class="r">{{ s.exit_multiple }}x</td>
+              <td class="r">&#8377;{{ "%.2f"|format(s.exit_value_per_share) }}</td><td class="r">&#8377;{{ "%.2f"|format(s.gross_lakh) }} lakh</td><td class="r">&#8377;{{ "%.2f"|format(s.net_lakh) }} lakh</td></tr>
+          {% endfor %}</tbody>
+        </table>
+      </div>
+      <p class="mk-fine" style="margin-top:8px;">Value per share = FMV &times; exit multiple &times; (1 &minus; future dilution). {{ r.label }} One flat tax rate stands in for perquisite tax at exercise and capital gains at sale.</p>
+    {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="mk-section mk-section-alt">
+  <div class="mk-wrap">
+    <div class="mk-section-head"><h2>What candidates actually ask about equity</h2></div>
+    <div class="mk-grid mk-grid-3">
+      <div class="mk-card">{{ icon('esop') }}<h3>Percentage or option count?</h3><p>A percentage only means something against fully diluted shares. Show both, and what the percentage becomes after the next rounds.</p></div>
+      <div class="mk-card">{{ icon('cash') }}<h3>Strike price and FMV</h3><p>The gap between strike and FMV is the value today; the strike times the option count is the cash needed to exercise.</p></div>
+      <div class="mk-card">{{ icon('runway') }}<h3>Vesting and cliff</h3><p>Most Indian schemes vest over four years after a one-year cliff, and the rules generally require at least a year between grant and vesting.</p></div>
+      <div class="mk-card">{{ icon('cohort') }}<h3>Dilution</h3><p>Future rounds shrink every holder's percentage. A scenario that ignores dilution overstates the outcome.</p></div>
+      <div class="mk-card">{{ icon('compare') }}<h3>Three scenarios, never one number</h3><p>Conservative, Base and Upside side by side, so nobody presents an illiquid option as a certain amount.</p></div>
+      <div class="mk-card">{{ icon('offer') }}<h3>A candidate-safe explanation</h3><p>In the workflow, the candidate summary shows the grant, strike, exercise cost and scenarios, and nothing internal.</p></div>
+    </div>
+  </div>
+</section>
+{% endblock %}

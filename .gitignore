@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Offer-workflow demo database and session key
+instance/

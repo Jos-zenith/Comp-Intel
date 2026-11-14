@@ -1,0 +1,68 @@
+{% extends "_app_shell.html" %}
+{% from "workflow/_macros.html" import csrf with context %}
+{% block title %}Outcome — CompIntel{% endblock %}
+{% block topbar_title %}{{ 'Record an outside offer' if external else 'Offer outcome - ' ~ req.candidate_pseudo_id }}{% endblock %}
+
+{% block content %}
+{% set e = existing or {} %}
+<div class="wf-grid">
+<div class="panel">
+  {% if external %}
+    <h2><i class="fas fa-file-import"></i> Offer made outside CompIntel</h2>
+    <p class="panel-sub">Outcomes from offers made elsewhere still improve your acceptance stats and, if data sharing is on, the anonymised benchmark.</p>
+  {% else %}
+    <p style="margin-bottom:10px;"><a href="{{ url_for('wf.offer_detail', request_id=req.id) }}"><i class="fas fa-arrow-left"></i> Back to offer</a></p>
+    <h2><i class="fas fa-flag-checkered"></i> {{ req.role }} - {{ req.level }} - {{ req.city }}</h2>
+    <p class="panel-sub">Approved package: {{ pkg.cash_ctc|lpa }} cash, {{ "{:,}".format(pkg.esop_options) }} options. This is recorded as the initial offer. If the candidate countered, enter their ask, then the final numbers. Counters and declines show where the market actually clears, so they're worth recording even when the offer was accepted unchanged.</p>
+  {% endif %}
+  <form method="POST">
+    {{ csrf() }}
+    <div class="form-grid">
+      {% if external %}
+        <div class="form-group full-width"><label for="x-role">Role</label><select id="x-role" name="role" required>
+          {% for fam, rs in roles.items() %}<optgroup label="{{ fam }}">{% for r in rs %}<option>{{ r }}</option>{% endfor %}</optgroup>{% endfor %}</select></div>
+        <div class="form-group"><label for="x-level">Level</label><select id="x-level" name="level">{% for l in levels %}<option>{{ l }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label for="x-city">City</label><select id="x-city" name="city">{% for c in cities %}<option>{{ c }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label for="x-emp">Employment type</label><select id="x-emp" name="employment_type">{% for e in employment_types %}<option>{{ e }}</option>{% endfor %}</select></div>
+      {% endif %}
+      <div class="form-group"><label for="o-status">Status</label><select id="o-status" name="status" required>
+        {% for k, v in statuses.items() %}<option value="{{ k }}" {% if e.status == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+      <div class="form-group"><label for="o-sent">Offer sent</label><input id="o-sent" type="date" name="sent_date" value="{{ e.sent_date or '' }}"></div>
+      <div class="form-group"><label for="o-verbal">Verbal acceptance</label><input id="o-verbal" type="date" name="verbal_acceptance_date" value="{{ e.verbal_acceptance_date or '' }}"></div>
+      <div class="form-group"><label for="o-dec">Decision date</label><input id="o-dec" type="date" name="decision_date" value="{{ e.decision_date or '' }}"></div>
+      {% if external %}
+      <div class="form-group"><label for="o-init">Initial offer cash CTC (LPA)</label><input id="o-init" type="number" step="0.01" name="initial_cash_ctc" value="{{ e.initial_cash_ctc if e.initial_cash_ctc is not none else '' }}"></div>
+      <div class="form-group"><label for="o-init-esop">Initial ESOP options</label><input id="o-init-esop" type="number" step="1" name="initial_esop_options" value="{{ e.initial_esop_options if e.initial_esop_options is not none else '' }}"></div>
+      {% endif %}
+      <div class="form-group"><label for="o-counter">Candidate counter, cash (LPA)</label><input id="o-counter" type="number" step="0.01" name="counter_cash_ctc" value="{{ e.counter_cash_ctc if e.counter_cash_ctc is not none else '' }}"></div>
+      <div class="form-group"><label for="o-counter-esop">Candidate counter, ESOP options</label><input id="o-counter-esop" type="number" step="1" name="counter_esop_options" value="{{ e.counter_esop_options if e.counter_esop_options is not none else '' }}"></div>
+      <div class="form-group"><label for="o-final">Final cash CTC (LPA)</label><input id="o-final" type="number" step="0.01" name="final_cash_ctc" value="{{ e.final_cash_ctc if e.final_cash_ctc is not none else (pkg.cash_ctc if pkg else '') }}"></div>
+      <div class="form-group"><label for="o-esop">Final ESOP options</label><input id="o-esop" type="number" step="1" name="final_esop_options" value="{{ e.final_esop_options if e.final_esop_options is not none else (pkg.esop_options if pkg else '') }}"></div>
+      <div class="form-group"><label for="o-comp">Competing offer (LPA)</label><input id="o-comp" type="number" step="0.01" name="competing_offer" value="{{ e.competing_offer or (req.competing_offer if req else '') or '' }}"></div>
+      <div class="form-group"><label for="o-reason">Decline reason</label><select id="o-reason" name="decline_reason"><option value="">-</option>
+        {% for r in reasons %}<option {% if e.decline_reason == r %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></div>
+      <div class="form-group full-width"><label for="o-notes">Notes</label><textarea id="o-notes" name="notes" rows="2" maxlength="1000">{{ e.notes or '' }}</textarea></div>
+      <div class="form-submit"><button class="btn btn-primary" type="submit">Save outcome</button></div>
+    </div>
+  </form>
+</div>
+
+{% if external %}
+<div class="panel">
+  <h2><i class="fas fa-file-csv"></i> Import past offers</h2>
+  <p class="panel-sub">The fastest start: bring in recent offers from your ATS export or a spreadsheet. They seed internal parity and acceptance stats straight away, before anyone enters company metrics. The whole batch is rejected if any row is invalid, so nothing is half-imported.</p>
+  <form method="POST" action="{{ url_for('wf.outcome_import') }}" enctype="multipart/form-data">
+    {{ csrf() }}
+    <div class="form-group"><label for="x-paste">Paste rows</label>
+      <textarea id="x-paste" name="csv_text" rows="5" placeholder="Software Engineer,Mid,Bengaluru,Full-time,accepted,2026-09-01,2026-09-05,22.5,8000,,,"></textarea>
+      <p class="muted small" style="margin-top:4px;">Columns: role, level, city, employment_type, status, sent_date, decision_date, final_cash_ctc, final_esop_options, competing_offer, decline_reason, notes, then optionally initial_cash_ctc, initial_esop_options, counter_cash_ctc, counter_esop_options. The header line is optional.</p></div>
+    <div class="inline-form">
+      <div class="form-group" style="flex:1;"><label for="x-file">Or upload a CSV file</label><input id="x-file" type="file" name="file" accept=".csv,text/csv"></div>
+      <button class="btn btn-primary" type="submit"><i class="fas fa-upload"></i> Import</button>
+      <a class="btn btn-ghost" href="{{ url_for('wf.outcome_template') }}"><i class="fas fa-download"></i> Template</a>
+    </div>
+  </form>
+</div>
+{% endif %}
+</div>
+{% endblock %}

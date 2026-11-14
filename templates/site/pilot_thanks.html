@@ -1,0 +1,20 @@
+{% extends "site/_base.html" %}
+{% from "site/_brand.html" import icon with context %}
+{% block title %}Thanks — CompIntel pilot{% endblock %}
+{% block final_cta %}{% endblock %}
+
+{% block content %}
+<section class="mk-section">
+  <div class="mk-wrap" style="max-width:720px;">
+    <div class="mk-card">
+      {{ icon('approval', 32) }}
+      <h1 style="font-size:1.8rem;">Thanks - your application is in.</h1>
+      <p style="margin-top:8px;">We'll reply to your work email. While you wait, run a sample benchmark for a role you're hiring for, or check a CTC structure.</p>
+      <div class="mk-cta-row">
+        <a class="mk-btn mk-btn-primary" href="{{ url_for('mk.sample') }}">Generate a sample offer benchmark</a>
+        <a class="mk-btn mk-btn-ghost" href="{{ url_for('mk.india_ctc') }}">India CTC calculator</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

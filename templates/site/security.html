@@ -1,0 +1,45 @@
+{% extends "site/_base.html" %}
+{% from "site/_brand.html" import icon with context %}
+{% block title %}Security, privacy &amp; methodology — CompIntel{% endblock %}
+
+{% block content %}
+<section class="mk-section-tight">
+  <div class="mk-wrap mk-section-head">
+    <div class="mk-eyebrow">About &amp; security</div>
+    <h1 style="font-size:clamp(1.8rem,3.8vw,2.6rem);">How we handle compensation data</h1>
+    <p class="mk-lead" style="margin-top:10px;">What we store, what we share, what is demo-only, and what isn't built yet. We'd rather tell you plainly than overstate it.</p>
+  </div>
+</section>
+
+<section class="mk-section-tight" style="padding-top:0;">
+  <div class="mk-wrap mk-grid mk-grid-2">
+    <div class="mk-card">{{ icon('lock') }}<h3>Tenant-private by default</h3><p>Company profile, SaaS metrics, cash and burn, bands, requisitions and offers belong to your workspace. Financial inputs never leave it.</p></div>
+    <div class="mk-card">{{ icon('consent') }}<h3>Consent before sharing</h3><p>Outcomes enter the shared benchmark only when your workspace has data sharing on. Shared rows hold role, level, city tier, bands and amounts - no names, no company identity (a salted hash), city reduced to its tier.</p></div>
+    <div class="mk-card">{{ icon('cohort') }}<h3>Minimum aggregation</h3><p>A real-data benchmark needs at least 10 accepted offers from at least 3 companies (configurable upward). Below that, nothing is shown.</p></div>
+    <div class="mk-card">{{ icon('audit') }}<h3>Tamper-evident history</h3><p>Submissions, approvals and metric snapshots can't be edited. The audit log is hash-chained, and an integrity check recomputes the chain so a direct database edit shows up.</p></div>
+    <div class="mk-card">{{ icon('candidate') }}<h3>Candidate data</h3><p>Benchmarks never need a candidate's name. Names, when entered, are purged from closed offers after a retention period you set, and never appear in shared data.</p></div>
+    <div class="mk-card">{{ icon('demo') }}<h3>Demo data, labelled</h3><p>The demo model is trained on a synthetic dataset calibrated to published ranges. Its accuracy figures describe the synthetic data only, and it cannot run in pilot or production workspaces.</p></div>
+  </div>
+</section>
+
+<section class="mk-section mk-section-alt">
+  <div class="mk-wrap mk-split" style="align-items:start;">
+    <div>
+      <h2>Not built yet</h2>
+      <ul class="mk-list">
+        <li>{{ icon('warning', 20) }}<span>Single sign-on. The demo uses a user switcher and only runs when explicitly enabled.</span></li>
+        <li>{{ icon('warning', 20) }}<span>PostgreSQL with managed secrets, backups and India data residency. The demo uses a local SQLite file.</span></li>
+        <li>{{ icon('warning', 20) }}<span>Anchoring the audit hash to an external append-only store.</span></li>
+        <li>{{ icon('warning', 20) }}<span>Independent security assessment.</span></li>
+      </ul>
+    </div>
+    <div id="dpa">
+      <h2>Data processing requests</h2>
+      <p>Design partners sign a data-sharing agreement before any records are imported. For a DPA, a deletion request, or questions about India's DPDP Act obligations, apply through the pilot form and mention it in the notes; we'll respond from a named contact.</p>
+      <a class="mk-btn mk-btn-ghost" style="margin-top:12px;" href="{{ url_for('mk.pilot', **{'from': 'dpa'}) }}">{{ icon('mail', 18) }} Contact us about data processing</a>
+      <h3 style="margin-top:28px;">Methodology</h3>
+      <p>The model, its features and its evaluation (on synthetic data) are documented on <a href="{{ url_for('about_tech') }}">About the model</a>. CTC and take-home rules are versioned and shown on the <a href="{{ url_for('mk.india_ctc') }}">India CTC page</a>.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}

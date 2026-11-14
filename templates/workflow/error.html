@@ -1,0 +1,10 @@
+{% extends "_app_shell.html" %}
+{% block title %}{{ code }} — CompIntel{% endblock %}
+{% block topbar_title %}{% if code == 403 %}Not allowed{% elif code == 404 %}Not found{% else %}Can't do that{% endif %}{% endblock %}
+{% block content %}
+<div class="panel" style="max-width:640px;">
+  <h2><i class="fas {{ 'fa-lock' if code == 403 else 'fa-circle-exclamation' }}"></i> {{ message }}</h2>
+  {% if code == 403 %}<p class="panel-sub">Permissions follow the role you're acting as. Switch demo user in the sidebar to try another role.</p>{% endif %}
+  <div class="btn-row"><a class="btn btn-outline" href="javascript:history.back()">Go back</a><a class="btn btn-primary" href="{{ url_for('wf.dashboard') }}">Dashboard</a></div>
+</div>
+{% endblock %}

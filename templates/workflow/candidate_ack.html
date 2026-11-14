@@ -1,0 +1,24 @@
+{% extends "_app_shell.html" %}
+{% from "workflow/_macros.html" import csrf, check_icon with context %}
+{% block title %}Review CTC warnings — CompIntel{% endblock %}
+{% block topbar_title %}Review before exporting to the candidate{% endblock %}
+
+{% block content %}
+<div class="panel" style="max-width:760px;">
+  <p style="margin-bottom:10px;"><a href="{{ url_for('wf.offer_detail', request_id=req.id) }}"><i class="fas fa-arrow-left"></i> Back to offer</a></p>
+  <h2><i class="fas fa-triangle-exclamation"></i> This package has CTC structure warnings</h2>
+  <p class="panel-sub">The candidate summary shows the CTC breakup. Before it leaves the company, confirm someone has reviewed these warnings. Your name and the time are recorded in the audit log.</p>
+  <ul class="check-list">
+    {% for c in warnings %}
+      <li class="check-item ci-warn">{{ check_icon('warn') }}<div><div><span class="ci-cat">{{ c.category }}</span><span class="ci-title">{{ c.title }}</span></div>
+        <div class="ci-detail">{{ c.detail }}</div>{% if c.ruleset %}<div class="ci-rule">{{ c.ruleset }} - effective {{ c.effective_from }}</div>{% endif %}</div></li>
+    {% endfor %}
+  </ul>
+  <p class="disclaimer">{{ disclaimer }}</p>
+  <form method="POST" style="margin-top:16px;">
+    {{ csrf() }}
+    <label class="checkbox-row ack-box"><input type="checkbox" name="confirm"> I've reviewed these warnings (ruleset {{ ruleset.id }} v{{ ruleset.version }}) and understand the breakup is decision support, not a payroll or legal sign-off.</label>
+    <div class="btn-row" style="margin-top:12px;"><button class="btn btn-primary" type="submit">Acknowledge and continue</button></div>
+  </form>
+</div>
+{% endblock %}

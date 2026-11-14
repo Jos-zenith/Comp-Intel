@@ -1,0 +1,42 @@
+{% extends "_app_shell.html" %}
+{% block title %}Revision {{ sub.revision }} — CompIntel{% endblock %}
+{% block topbar_title %}{{ req.candidate_pseudo_id }} - revision {{ sub.revision }} snapshot{% endblock %}
+
+{% block content %}
+<p style="margin-bottom:14px;"><a href="{{ url_for('wf.offer_detail', request_id=req.id) }}"><i class="fas fa-arrow-left"></i> Back to offer</a></p>
+<div class="wf-grid">
+  <div class="panel">
+    <h2><i class="fas fa-lock"></i> Immutable submission</h2>
+    <p class="panel-sub">Everything needed to reproduce this offer was frozen at submission: inputs, benchmark, package, check results, policy, ruleset and approval route.</p>
+    <div class="cost-row"><span>Submitted</span><span>{{ sub.submitted_at|dt }}</span></div>
+    <div class="cost-row"><span>Scenario</span><span>{{ sub.package_label }}</span></div>
+    <div class="cost-row"><span>State</span><span>{{ state.state.replace('_', ' ') }}</span></div>
+    <div class="cost-row"><span>SHA-256</span><span class="small">{{ sub.snapshot_hash[:24] }}...</span></div>
+    <div class="cost-row"><span>Model version</span><span class="small">{{ snap.benchmark.model_version }}</span></div>
+    <div class="cost-row"><span>Ruleset</span><span class="small">{{ snap.evaluation.ruleset.id }} v{{ snap.evaluation.ruleset.version }}</span></div>
+    <div class="cost-row"><span>Health score formula</span><span class="small">{{ snap.benchmark.health_score_version }}</span></div>
+    {% if snap.benchmark.cohort.cohort_hash %}<div class="cost-row"><span>Peer cohort hash</span><span class="small">{{ snap.benchmark.cohort.cohort_hash[:24] }}...</span></div>{% endif %}
+    <div class="cost-row"><span>Data mode</span><span class="small">{{ snap.benchmark.data_mode or 'demo' }}</span></div>
+    {% set ctx = sub.context | fromjson if sub.context is defined and sub.context else {} %}
+    {% if ctx %}<div class="cost-row"><span>Submitted from</span><span class="small">{{ ctx.ip or '-' }} - session {{ ctx.session or '-' }}</span></div>{% endif %}
+    <p class="muted small" style="margin-top:10px;">The submission and every approval action are also recorded in the hash-chained audit log; an admin can verify the whole chain from the Audit log page.</p>
+    <div class="btn-row" style="margin-top:14px;"><a class="btn btn-outline btn-sm" href="?verify=1"><i class="fas fa-vial"></i> Verify reproducibility</a></div>
+    {% if verification %}
+      <div class="flash {{ 'flash-success' if verification.ok else 'flash-error' }}" style="margin-top:14px;">
+        <i class="fas {{ 'fa-circle-check' if verification.ok else 'fa-triangle-exclamation' }}"></i>
+        <div>
+          Hash {{ 'matches' if verification.hash_ok else 'DOES NOT match' }}.
+          {% if verification.observed %}{% if verification.reason %}{{ verification.reason }}{% else %}Re-deriving the range from the {{ snap.benchmark.cohort.n }} stored observation rows gives P25/P50/P75 {{ verification.rerun.p25 }} / {{ verification.rerun.p50 }} / {{ verification.rerun.p75 }} - {{ 'identical' if verification.reproduced else 'different' }}; the rows hash {{ 'matches' if verification.rows_hash_ok else 'DOES NOT match (rows were edited)' }}.{% endif %}
+          {% elif verification.no_model %}No model was run for this offer (no recommendation was available), so there's nothing to re-run; the hash covers the manually entered package.
+          {% elif verification.same_model %}Re-running the stored inputs on the same model gives P25/P50/P75 {{ verification.rerun.p25 }} / {{ verification.rerun.p50 }} / {{ verification.rerun.p75 }} - {{ 'identical' if verification.reproduced else 'different (max diff ' ~ verification.diffs.values()|max ~ ')' }}.
+          {% else %}The model has been retrained since; the stored snapshot remains the record of what was approved.{% endif %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+  <div class="panel">
+    <h2><i class="fas fa-code"></i> Snapshot</h2>
+    <div class="json-block">{{ snap | tojson(indent=2) }}</div>
+  </div>
+</div>
+{% endblock %}

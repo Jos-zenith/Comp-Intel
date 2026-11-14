@@ -1,0 +1,74 @@
+{% from "site/_brand.html" import icon, demo_label with context %}
+
+{% macro range_bar(s) -%}
+{%- set lo = s.p25 * 0.82 -%}{%- set hi = s.p75 * 1.14 -%}
+{%- set w = hi - lo -%}
+{%- set rec = s.scenarios[1].cash -%}{%- set agg = s.scenarios[2].cash -%}
+<div class="mk-range" role="img" aria-label="Market range P25 {{ s.p25 }}, P50 {{ s.p50 }}, P75 {{ s.p75 }} lakh; recommended {{ rec }}; aggressive {{ agg }}">
+  <div class="mk-range-track"></div>
+  <div class="mk-range-iqr" style="left:{{ (s.p25 - lo) / w * 100 }}%; width:{{ (s.p75 - s.p25) / w * 100 }}%;"></div>
+  <div class="mk-range-mark" style="left:{{ (s.p50 - lo) / w * 100 }}%;"></div>
+  <div class="mk-range-mark rec" style="left:{{ (rec - lo) / w * 100 }}%;"></div>
+  <div class="mk-range-label" style="left:{{ (s.p25 - lo) / w * 100 }}%;">P25</div>
+  <div class="mk-range-label" style="left:{{ (s.p50 - lo) / w * 100 }}%;">P50</div>
+  <div class="mk-range-label" style="left:{{ (s.p75 - lo) / w * 100 }}%;">P75</div>
+</div>
+{%- endmacro %}
+
+{# The offer-decision card: market benchmark, company context, recommended package and its runway impact. #}
+{% macro decision_card(s, with_actions=True) -%}
+{%- set rec = s.scenarios[1] -%}
+<article class="mk-decision" aria-label="Sample offer decision">
+  <div class="mk-decision-head">
+    <strong>{{ s.role }} · {{ s.level }} · {{ s.city }}</strong>
+    {{ demo_label() }}
+  </div>
+  <div class="mk-decision-body">
+    <div>
+      <div class="mk-kicker">Market benchmark ({{ s.stage }}, cash CTC)</div>
+      <div class="mk-quartiles">
+        <div><span>P25</span><b>&#8377;{{ "%.1f"|format(s.p25) }} LPA</b></div>
+        <div><span>P50</span><b>&#8377;{{ "%.1f"|format(s.p50) }} LPA</b></div>
+        <div><span>P75</span><b>&#8377;{{ "%.1f"|format(s.p75) }} LPA</b></div>
+      </div>
+      {{ range_bar(s) }}
+    </div>
+    <div>
+      <div class="mk-kicker">Your company context{% if not s.get('custom') %} (sample company){% endif %}</div>
+      <div class="mk-kv"><span>Health score</span><b>{{ s.health_score }}/100 <span class="mk-fine">({{ s.health_band }})</span></b></div>
+      <div class="mk-kv"><span>Runway</span><b>{{ "%.0f"|format(s.context.runway_months) if s.context.runway_months else 'break-even' }} months</b></div>
+      <div class="mk-kv"><span>Hiring budget</span><b>&#8377;{{ "%.1f"|format(s.context.hiring_budget_lakh / 100) }} Cr for {{ s.context.planned_hires }} hires</b></div>
+    </div>
+    <div class="mk-decision-rec">
+      <div class="mk-kicker" style="color:var(--teal-text);">Recommended package</div>
+      <div class="mk-kv"><span>Cash CTC</span><b>&#8377;{{ "%.1f"|format(rec.cash) }} LPA <span class="mk-fine">(about P{{ rec.percentile }})</span></b></div>
+      <div class="mk-kv"><span>ESOP</span><b>{{ "%.3f"|format(rec.esop_pct) }}% <span class="mk-fine">({{ rec.esop_options|indian }} options)</span></b></div>
+      <div class="mk-kv"><span>Runway impact</span><b class="mk-impact">{{ "%+.2f"|format(rec.runway_delta) if rec.runway_delta is not none else '-' }} months</b></div>
+    </div>
+  </div>
+  {% if with_actions %}
+  <div class="mk-decision-foot">
+    <a class="mk-btn mk-btn-primary mk-btn-sm" href="{{ url_for('mk.sample', role=s.role, level=s.level, city=s.city, stage=s.stage) }}">{{ icon('compare', 18) }} Compare scenarios</a>
+    <a class="mk-btn mk-btn-ghost mk-btn-sm" href="{{ url_for('mk.sample') }}">Try another role</a>
+  </div>
+  {% endif %}
+</article>
+{%- endmacro %}
+
+{% macro sample_form(roles, levels, cities, stages, form=None, compact=False) -%}
+{%- set f = form or {} -%}
+<form class="mk-form mk-form-4" method="GET" action="{{ url_for('mk.sample') }}">
+  <div class="mk-field"><label for="sf-role">Role</label>
+    <select id="sf-role" name="role" required>
+      <option value="" disabled {% if not f.role %}selected{% endif %}>Choose a role</option>
+      {% for fam, rs in roles.items() %}<optgroup label="{{ fam }}">{% for r in rs %}<option {% if f.role == r %}selected{% endif %}>{{ r }}</option>{% endfor %}</optgroup>{% endfor %}
+    </select></div>
+  <div class="mk-field"><label for="sf-level">Level</label>
+    <select id="sf-level" name="level" required>{% for l in levels %}<option {% if (f.level or 'Senior') == l %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div class="mk-field"><label for="sf-city">City</label>
+    <select id="sf-city" name="city" required>{% for c in cities %}<option {% if (f.city or 'Bengaluru') == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+  <div class="mk-field"><label for="sf-stage">Company stage</label>
+    <select id="sf-stage" name="stage" required>{% for st in stages %}<option {% if (f.stage or 'Series A') == st %}selected{% endif %}>{{ st }}</option>{% endfor %}</select></div>
+  <div><button class="mk-btn mk-btn-primary" type="submit" style="width:100%; justify-content:center;">Generate {{ icon('arrow', 18) }}</button></div>
+</form>
+{%- endmacro %}

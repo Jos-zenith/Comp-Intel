@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}CompIntel{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/workflow.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/brand.css') }}" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/compintel-mark.svg') }}" />
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  {% set ep = request.endpoint or '' %}
+  <div class="app-shell">
+    <aside class="app-sidebar" id="app-sidebar">
+      <a href="{{ url_for('home') }}" class="sidebar-brand"><img src="{{ url_for('static', filename='images/compintel-mark-reversed.svg') }}" alt=""><span>Comp<span style="color:#6FD3D1;">Intel</span></span></a>
+      <nav class="sidebar-nav" aria-label="Main">
+        <div class="sidebar-section-label">Offer workflow</div>
+        <a href="{{ url_for('wf.dashboard') }}" class="sidebar-link {% if ep == 'wf.dashboard' %}active{% endif %}"><i class="fas fa-gauge"></i> Dashboard</a>
+        <a href="{{ url_for('wf.offers') }}" class="sidebar-link {% if ep.startswith('wf.offer') or ep in ['wf.submission_view', 'wf.candidate_summary'] %}active{% endif %}"><i class="fas fa-file-signature"></i> Offers</a>
+        <a href="{{ url_for('wf.approvals') }}" class="sidebar-link {% if ep == 'wf.approvals' %}active{% endif %}"><i class="fas fa-list-check"></i> Approvals
+          {% if wf_pending_count %}<span class="sidebar-count">{{ wf_pending_count }}</span>{% endif %}</a>
+        <a href="{{ url_for('wf.requisitions') }}" class="sidebar-link {% if ep == 'wf.requisitions' %}active{% endif %}"><i class="fas fa-briefcase"></i> Requisitions</a>
+        <a href="{{ url_for('wf.company') }}" class="sidebar-link {% if ep == 'wf.company' %}active{% endif %}"><i class="fas fa-building"></i> Company &amp; metrics</a>
+        <a href="{{ url_for('wf.bands') }}" class="sidebar-link {% if ep == 'wf.bands' %}active{% endif %}"><i class="fas fa-layer-group"></i> Job architecture</a>
+        <a href="{{ url_for('wf.insights') }}" class="sidebar-link {% if ep in ['wf.insights', 'wf.outcome_external'] %}active{% endif %}"><i class="fas fa-chart-column"></i> Outcomes &amp; insights</a>
+        <a href="{{ url_for('wf.market') }}" class="sidebar-link {% if ep == 'wf.market' %}active{% endif %}"><i class="fas fa-wave-square"></i> Live market</a>
+        <a href="{{ url_for('wf.network_page') }}" class="sidebar-link {% if ep == 'wf.network_page' %}active{% endif %}"><i class="fas fa-diagram-project"></i> Benchmark data</a>
+        {% if wf_can and wf_can('manage_integrations') %}
+        <a href="{{ url_for('wf.integrations_page') }}" class="sidebar-link {% if ep == 'wf.integrations_page' %}active{% endif %}"><i class="fas fa-plug"></i> Integrations</a>
+        {% endif %}
+        <a href="{{ url_for('wf.settings_page') }}" class="sidebar-link {% if ep == 'wf.settings_page' %}active{% endif %}"><i class="fas fa-gear"></i> Settings</a>
+        {% if wf_can and wf_can('view_audit') %}
+        <a href="{{ url_for('wf.audit_page') }}" class="sidebar-link {% if ep == 'wf.audit_page' %}active{% endif %}"><i class="fas fa-clock-rotate-left"></i> Audit log</a>
+        <a href="{{ url_for('wf.pilot_applications') }}" class="sidebar-link {% if ep == 'wf.pilot_applications' %}active{% endif %}"><i class="fas fa-inbox"></i> Pilot applications</a>
+        {% endif %}
+
+        <div class="sidebar-section-label">About &amp; methodology</div>
+        <a href="{{ url_for('about_tech') }}" class="sidebar-link {% if ep == 'about_tech' %}active{% endif %}"><i class="fas fa-flask"></i> Methodology</a>
+        {% set lab_open = ep in ['predict_form', 'predict', 'compare_page', 'saas_metrics_page', 'compliance_check_page'] %}
+        <details class="sidebar-lab" {% if lab_open %}open{% endif %}>
+          <summary class="sidebar-link"><i class="fas fa-vial"></i> Methodology lab</summary>
+          <a href="{{ url_for('predict_form') }}" class="sidebar-link sub {% if ep in ['predict_form', 'predict'] %}active{% endif %}">Model explorer</a>
+          <a href="{{ url_for('compare_page') }}" class="sidebar-link sub {% if ep == 'compare_page' %}active{% endif %}">Compare two companies</a>
+          <a href="{{ url_for('saas_metrics_page') }}" class="sidebar-link sub {% if ep == 'saas_metrics_page' %}active{% endif %}">SaaS metrics calculator</a>
+          <a href="{{ url_for('compliance_check_page') }}" class="sidebar-link sub {% if ep == 'compliance_check_page' %}active{% endif %}">CTC structure check</a>
+        </details>
+      </nav>
+      <div class="sidebar-foot">
+        {% if wf_user %}
+        <form method="POST" action="{{ url_for('wf.switch_user') }}" class="user-switch">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="next" value="{{ request.full_path if request.method == 'GET' else url_for('wf.dashboard') }}">
+          <label for="user-switch-select">Acting as (demo login)</label>
+          <select id="user-switch-select" name="user_id" onchange="this.form.submit()">
+            {% for u in wf_users %}
+              <option value="{{ u.id }}" {% if u.id == wf_user.id %}selected{% endif %}>{{ u.name }} - {{ wf_roles[u.role] }}</option>
+            {% endfor %}
+          </select>
+          <noscript><button type="submit" class="btn btn-outline btn-sm">Switch</button></noscript>
+        </form>
+        {% endif %}
+        <a href="{{ url_for('home') }}" class="sidebar-back"><i class="fas fa-arrow-left"></i> Back to overview</a>
+      </div>
+    </aside>
+
+    <div class="app-main">
+      <div class="demo-banner" role="note"><i class="fas fa-flask"></i> Demo environment. Benchmarks come from a synthetic, benchmark-calibrated dataset, not real market data. Don't use them for real offers.</div>
+      <div class="app-topbar">
+        <button class="sidebar-toggle" id="sidebar-toggle" aria-label="toggle navigation"><span class="hamburger"></span></button>
+        <h1 class="app-topbar-title">{% block topbar_title %}{% endblock %}</h1>
+        <div class="app-topbar-spacer"></div>
+        {% block topbar_actions %}{% endblock %}
+        {% if wf_user %}<span class="role-chip" title="{{ wf_user.email }}"><i class="fas fa-user"></i> {{ wf_roles[wf_user.role] }}</span>{% endif %}
+      </div>
+      <div class="app-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for category, message in messages %}
+            <div class="flash flash-{{ category }}" role="status"><i class="fas {{ 'fa-circle-check' if category == 'success' else 'fa-triangle-exclamation' }}"></i> {{ message }}</div>
+          {% endfor %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

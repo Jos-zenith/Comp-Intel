@@ -1,0 +1,285 @@
+{% extends "_app_shell.html" %}
+{% from "workflow/_macros.html" import status, csrf, range_chart, demo_badge with context %}
+{% block title %}{{ req.candidate_pseudo_id }} — CompIntel{% endblock %}
+{% block topbar_title %}Offer {{ req.candidate_pseudo_id }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h2>{{ req.role }} <span class="muted" style="font-weight:500;">- {{ req.level }} - {{ req.city }}</span> {{ status(req.status) }}</h2>
+    <p>{% if req.candidate_name and show_benchmark %}{{ req.candidate_name }} - {% endif %}{{ req.employment_type }} - {{ req.years_experience|round(1) }} yrs, {{ req.skill_category }}
+      {% if req.expected_ctc %} - expects {{ req.expected_ctc|lpa(1) }}{% endif %}
+      {% if req.competing_offer %} - competing offer {{ req.competing_offer|lpa(1) }}{% endif %}
+      {% if requisition %} - requisition #{{ requisition.id }}, budget {{ requisition.budget_max_lpa|lpa(1) }}{% endif %}</p>
+  </div>
+  <div class="btn-row">
+    {% if show_benchmark and packages|length > 1 %}<a class="btn btn-ghost btn-sm" href="{{ url_for('wf.offer_scenarios', request_id=req.id) }}"><i class="fas fa-table-columns"></i> Compare scenarios</a>{% endif %}
+    {% if latest and wf_can('export_benchmark') %}<a class="btn btn-ghost btn-sm" href="{{ url_for('wf.offer_brief', request_id=req.id) }}"><i class="fas fa-file-pdf"></i> Internal brief</a>{% endif %}
+    {% if state and state.state == 'approved' and wf_can('record_outcome') %}
+      <a class="btn btn-outline btn-sm" href="{{ url_for('wf.candidate_summary', request_id=req.id) }}"><i class="fas fa-envelope-open-text"></i> Candidate summary</a>
+      <a class="btn btn-primary btn-sm" href="{{ url_for('wf.offer_outcome', request_id=req.id) }}"><i class="fas fa-flag-checkered"></i> {{ 'Update' if outcome else 'Record' }} outcome</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if req.status == 'changes_requested' and state and state.final_action %}
+  <div class="flash flash-error"><i class="fas fa-rotate-left"></i> Changes requested by {{ state.final_action.user_name }}: "{{ state.final_action.comment }}". Edit a scenario and resubmit.</div>
+{% elif req.status == 'rejected' and state and state.final_action %}
+  <div class="flash flash-error"><i class="fas fa-ban"></i> Rejected by {{ state.final_action.user_name }}: "{{ state.final_action.comment }}". You can revise and resubmit; the rejected revision stays in history.</div>
+{% endif %}
+
+<div class="wf-grid">
+<div>
+  <div class="panel">
+    <h2><i class="fas fa-sliders"></i> {{ 'Package builder' if editable else 'Submitted package' }}{% if not editable and latest %} <span class="muted small">revision {{ latest.revision }}, scenario {{ label }}</span>{% endif %}</h2>
+    {% if editable %}
+    <div class="tabs">
+      {% for l in scenario_labels %}
+        <a class="tab {% if l == label %}active{% endif %}" href="{{ url_for('wf.offer_detail', request_id=req.id, scenario=l) }}">Scenario {{ l }}{% if l not in packages %} (new){% endif %}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if show_benchmark %}{{ range_chart(bm, pkg.cash_ctc, 'pkg-range') }}{% endif %}
+
+    <form method="POST" action="{{ url_for('wf.offer_package_save', request_id=req.id) }}" id="package-form"
+          data-evaluate-url="{{ url_for('wf.offer_evaluate', request_id=req.id) }}"
+          data-fmv="{{ settings.fmv_per_share_inr }}" data-fds="{{ settings.fully_diluted_shares }}" data-target="{{ bm.target if bm.display.show_target else '' }}"
+          data-tolerance="{{ settings.override_tolerance_pct }}" style="margin-top:14px;">
+      {{ csrf() }}<input type="hidden" name="label" value="{{ label }}">
+      <fieldset {% if not editable %}disabled{% endif %} style="border:0;">
+      <div class="form-grid">
+        <div class="form-group"><label for="p-fixed">Fixed pay (LPA)</label><input id="p-fixed" type="number" step="0.01" min="0" name="fixed_pay" required value="{{ pkg.fixed_pay }}"></div>
+        <div class="form-group"><label for="p-var">Variable pay (LPA)</label><input id="p-var" type="number" step="0.01" min="0" name="variable_pay" value="{{ pkg.variable_pay }}"></div>
+        <div class="form-group full-width"><div class="cost-row total"><span>Cash CTC</span><span id="cash-ctc-out">{{ pkg.cash_ctc|lpa }}</span></div>
+          {% if bm.display.show_target %}
+          <div class="cost-row"><span>vs recommendation ({{ bm.target|lpa(1) }})</span><span id="gap-out">{{ "%+.1f"|format((pkg.cash_ctc / bm.target - 1) * 100) }}%</span></div>
+          {% else %}
+          <div class="cost-row"><span>vs recommendation</span><span class="muted">no target at {{ bm.confidence.level|lower }} confidence</span></div>
+          {% endif %}</div>
+
+        <div class="form-group"><label for="p-esop">ESOP options</label><input id="p-esop" type="number" step="10" min="0" name="esop_options" value="{{ pkg.esop_options }}">
+          {% if show_benchmark and bm.esop.options_high %}<span class="muted small">Recommended {{ "{:,}".format(bm.esop.options_low) }}-{{ "{:,}".format(bm.esop.options_high) }}</span>{% endif %}</div>
+        <div class="form-group"><label for="p-vest">Vesting (years) / cliff (months)</label>
+          <div style="display:flex; gap:8px;"><input id="p-vest" type="number" step="0.5" min="1" max="10" name="vesting_years" value="{{ pkg.vesting_years }}" aria-label="Vesting years">
+          <input type="number" min="0" max="24" name="cliff_months" value="{{ pkg.cliff_months }}" aria-label="Cliff months"></div></div>
+        <div class="form-group"><label for="p-strike">Strike price (Rs./share)</label><input id="p-strike" type="number" step="0.01" min="0" name="strike_price_inr" value="{{ pkg.strike_price_inr if pkg.strike_price_inr is defined else settings.strike_price_inr }}">
+          <span class="muted small">Current FMV Rs.{{ settings.fmv_per_share_inr|int }}/share</span></div>
+
+        <div class="form-group"><label for="p-join">Joining bonus (Rs. lakh)</label><input id="p-join" type="number" step="0.01" min="0" name="joining_bonus" value="{{ pkg.joining_bonus }}"></div>
+        <div class="form-group"><label for="p-reloc">Relocation (Rs. lakh)</label><input id="p-reloc" type="number" step="0.01" min="0" name="relocation" value="{{ pkg.relocation }}"></div>
+        <div class="form-group"><label for="p-notice">Notice-period buyout (Rs. lakh)</label><input id="p-notice" type="number" step="0.01" min="0" name="notice_buyout" value="{{ pkg.notice_buyout }}"></div>
+        <div class="form-group"><label for="p-other">Other one-time (Rs. lakh)</label><input id="p-other" type="number" step="0.01" min="0" name="other_one_time" value="{{ pkg.other_one_time }}"></div>
+
+        <div class="form-group full-width" id="override-group">
+          {% if bm.display.manual_reason_required %}
+          <label for="p-reason">Manual-entry reason <span class="muted">(required: there's no recommendation for this offer)</span></label>
+          {% else %}
+          <label for="p-reason">Override reason <span class="muted">(required if more than {{ settings.override_tolerance_pct }}% from the recommendation)</span></label>
+          {% endif %}
+          <div style="display:flex; gap:8px;">
+            <select id="p-reason" name="override_reason" style="max-width:260px;"><option value="">None</option>
+              {% for k, v in override_reasons.items() %}<option value="{{ k }}" {% if pkg.override_reason == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+            <input name="override_note" maxlength="500" placeholder="Short note for approvers" value="{{ pkg.override_note }}" aria-label="Override note">
+          </div>
+        </div>
+        {% if bm.display.ack_required %}
+        <div class="form-group full-width">
+          <label class="checkbox-row ack-box"><input type="checkbox" name="low_confidence_ack" {% if pkg.low_confidence_ack %}checked{% endif %}>
+            I've read why this benchmark is low confidence ({{ bm.confidence.reasons[:2]|join(' ') }}) and I'm not treating the band as a recommendation.</label>
+        </div>
+        {% endif %}
+        <div class="form-group full-width"><label for="p-notes">Notes for approvers</label><textarea id="p-notes" name="notes" rows="2" maxlength="1000">{{ pkg.notes }}</textarea></div>
+      </div>
+      </fieldset>
+
+      <div class="panel" style="background:var(--surface-alt); margin:16px 0 0; padding:14px 16px;">
+        <div class="cost-group-label"><i class="fas fa-indian-rupee-sign"></i> Cash cost to the company</div>
+        <div class="cost-row"><span>Recurring annual cash</span><span id="cost-recurring">{{ ev.costs.recurring_cash|lpa }}</span></div>
+        <div class="cost-row"><span>One-time cash</span><span id="cost-onetime">Rs.{{ "%.2f"|format(ev.costs.one_time_cash) }} lakh</span></div>
+        <div class="cost-row total"><span>Year-one cash cost</span><span id="cost-yearone">Rs.{{ "%.2f"|format(ev.costs.year_one_cash) }} lakh</span></div>
+        <div class="cost-group-label equity"><i class="fas fa-chart-pie"></i> Equity - not cash, not in the total above</div>
+        <div class="cost-row"><span>ESOP grant at FMV (Rs.{{ settings.fmv_per_share_inr|int }}/share)</span><span id="cost-esop">Rs.{{ "%.2f"|format(ev.costs.esop_grant_value_lakh) }} lakh</span></div>
+        <div class="cost-row"><span>Dilution (fully diluted)</span><span id="cost-dilution">{{ "%.3f"|format(ev.costs.dilution_pct) if ev.costs.dilution_pct is not none else '-' }}%</span></div>
+      </div>
+
+      {% if editable %}
+      <div class="btn-row" style="margin-top:16px;">
+        <button class="btn btn-outline" type="submit" name="action" value="save"><i class="fas fa-floppy-disk"></i> Save scenario {{ label }}</button>
+        <button class="btn btn-primary" type="submit" name="action" value="submit" id="submit-btn" {% if ev.blocked %}disabled{% endif %}><i class="fas fa-paper-plane"></i> Submit scenario {{ label }} for approval</button>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2><i class="fas fa-clipboard-check"></i> Checks {% if not editable and latest %}<span class="muted small">as checked at submission</span>{% endif %}</h2>
+    <div id="checks-body">{% include "workflow/_checks.html" with context %}</div>
+  </div>
+</div>
+
+<div>
+  {% if show_benchmark %}
+  <div class="panel">
+    <h2><i class="fas fa-chart-simple"></i> Benchmark {{ demo_badge(bm) }}</h2>
+    {% set d = bm.display %}
+    <div class="stat-grid">
+      {% if d.show_quantiles %}
+      <div class="stat-cell"><div class="k">P25</div><div class="v">{{ "%.1f"|format(bm.p25) }}</div></div>
+      <div class="stat-cell"><div class="k">P50</div><div class="v">{{ "%.1f"|format(bm.p50) }}</div></div>
+      <div class="stat-cell"><div class="k">P75</div><div class="v">{{ "%.1f"|format(bm.p75) }}</div></div>
+      {% endif %}
+      {% if d.mode in ['widened', 'broad'] %}
+      <div class="stat-cell"><div class="k">{{ 'Range used for checks' if d.mode == 'widened' else 'Broad band' }}</div><div class="v">{{ "%.1f"|format(d.lo) }}-{{ "%.1f"|format(d.hi) }}</div><div class="s">widened {{ (d.widen * 100)|int }}% each side</div></div>
+      {% endif %}
+      {% if d.show_target %}
+      <div class="stat-cell"><div class="k">Target (P{{ bm.target_percentile|int }})</div><div class="v accent">{{ "%.1f"|format(bm.target) }}</div><div class="s">LPA cash CTC</div></div>
+      {% if bm.positioning %}
+      <div class="stat-cell"><div class="k">Health positioning</div><div class="v">{{ "%+d"|format(bm.positioning.percentile_shift|int) }} pts</div><div class="s">policy P{{ bm.positioning.policy_percentile|int }} &rarr; P{{ bm.target_percentile|int }} ({{ bm.positioning.band }})</div></div>
+      {% elif bm.generic_p50 %}
+      <div class="stat-cell"><div class="k">Generic median</div><div class="v">{{ "%.1f"|format(bm.generic_p50) }}</div><div class="s">typical {{ bm.inputs.funding_stage }} company (older benchmark)</div></div>
+      {% endif %}
+      {% endif %}
+      <div class="stat-cell"><div class="k">Confidence</div><div class="v conf-{{ bm.confidence.level }}">{{ bm.confidence.level }}</div><div class="s">{{ bm.confidence.score }}/100</div></div>
+    </div>
+    {% if d.notice %}<div class="flash {{ 'flash-error' if d.mode in ['broad', 'none'] else 'flash-warn' }}" style="margin:12px 0 0;"><i class="fas fa-triangle-exclamation"></i> {{ d.notice }}</div>{% endif %}
+    {% if bm.confidence.level != 'High' %}
+    <ul class="driver-list conf-reasons" style="margin-top:8px;">{% for r in bm.confidence.reasons %}<li>{{ r }}</li>{% endfor %}</ul>
+    {% endif %}
+
+    <h3 class="small" style="margin:16px 0 6px;">{{ 'Why this recommendation' if d.show_target else 'Context' }}</h3>
+    <ul class="driver-list">{% for d in bm.drivers %}<li>{{ d }}</li>{% endfor %}</ul>
+
+    <h3 class="small" style="margin:16px 0 6px;">Peer cohort</h3>
+    {% if bm.cohort.suppressed %}
+      <p class="small" style="color:var(--danger);">{{ bm.cohort.reason }} The benchmark is shown with Insufficient confidence.</p>
+    {% else %}
+      <table class="data-table"><tbody>
+        <tr><td>Definition</td><td>{{ bm.cohort.definition }}{% if bm.cohort.widened %} <span class="badge badge-warning">widened</span>{% endif %}</td></tr>
+        <tr><td>Observations</td><td class="num">{{ bm.cohort.n }} across {{ bm.cohort.companies }} companies (min {{ bm.cohort.min_n }}{% if bm.cohort.min_contributors %}, {{ bm.cohort.min_contributors }} companies{% endif %})</td></tr>
+        {% if bm.cohort.engine %}
+        <tr><td>Same cohort, not accepted</td><td class="num">{{ bm.cohort.declined_n }} declined, {{ bm.cohort.withdrawn_n }} withdrawn; {{ bm.cohort.countered_n }} countered</td></tr>
+        <tr><td>Observed period</td><td class="num">{{ bm.cohort.oldest_month }} to {{ bm.cohort.vintage[:7] }} (median age {{ bm.cohort.median_age_months }} mo)</td></tr>
+        {% endif %}
+        <tr><td>Cohort P25 / P50 / P75 (raw)</td><td class="num">{{ bm.cohort.empirical_p25 }} / {{ bm.cohort.empirical_p50 }} / {{ bm.cohort.empirical_p75 }}</td></tr>
+        {% set rec = bm.cohort.reconciliation %}
+        {% if rec %}
+        <tr><td>Cohort adjusted to this candidate</td><td class="num">{{ "%.1f"|format(rec.adjusted_p25) }} / {{ "%.1f"|format(rec.adjusted_p50) }} / {{ "%.1f"|format(rec.adjusted_p75) }}</td></tr>
+        <tr><td colspan="2" class="small">
+          <strong>Why the market range differs from the raw cohort.</strong> {{ rec.summary }}
+          {% if rec.mix %}<ul class="driver-list" style="margin-top:4px;">{% for m in rec.mix %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+          <span class="muted">{{ rec.method }}</span>
+        </td></tr>
+        {% endif %}
+        <tr><td>Data vintage</td><td class="num">{{ bm.cohort.vintage }}</td></tr>
+        <tr><td>Source</td><td>{{ bm.cohort.source }}</td></tr>
+        {% if bm.cohort.cohort_hash %}<tr><td>Cohort hash</td><td class="num small" title="SHA-256 of the dataset file plus the exact observation IDs">{{ bm.cohort.cohort_hash[:16] }}...</td></tr>{% endif %}
+      </tbody></table>
+    {% endif %}
+    {% if bm.confidence.level == 'High' %}
+    <details style="margin-top:10px;"><summary class="small muted" style="cursor:pointer;">Confidence reasons</summary>
+      <ul class="driver-list" style="margin-top:6px;">{% for r in bm.confidence.reasons %}<li>{{ r }}</li>{% endfor %}</ul></details>
+    {% endif %}
+
+    {% if bm.shap_drivers %}
+    <h3 class="small" style="margin:16px 0 6px;">Top model drivers (SHAP, vs Rs.{{ "%.1f"|format(bm.shap_base_lpa) }} LPA average)</h3>
+    {% for sd in bm.shap_drivers %}
+      <div class="cost-row"><span>{{ sd.feature }} <span class="muted">({{ sd.value }})</span></span><span style="color: {{ 'var(--accent)' if sd.lpa >= 0 else 'var(--danger)' }};">{{ "%+.2f"|format(sd.lpa) }}</span></div>
+    {% endfor %}
+    {% endif %}
+
+    <h3 class="small" style="margin:16px 0 6px;">ESOP recommendation</h3>
+    {% if bm.esop.options_high %}
+      <div class="cost-row"><span>Grant range</span><span>{{ "{:,}".format(bm.esop.options_low) }} - {{ "{:,}".format(bm.esop.options_high) }} options</span></div>
+      <div class="cost-row"><span>Mid grant value at FMV</span><span>Rs.{{ "%.2f"|format(bm.esop.grant_value_lakh_mid) }} lakh over {{ bm.esop.vesting_years|round(1) }} yrs</span></div>
+      <div class="cost-row"><span>Risk-adjusted value / year</span><span>{{ bm.esop.expected_value_annual_lpa|lpa }}</span></div>
+      {% if bm.esop.source == 'observed' %}
+      <p class="disclaimer">Interquartile range of {{ bm.esop.observed_n }} observed accepted grants in this cohort{% if bm.esop.esop_tilt and bm.esop.esop_tilt != 1 %}, tilted up {{ ((bm.esop.esop_tilt - 1) * 100)|round|int }}% because cash is tight{% endif %}. Value at FMV Rs.{{ bm.esop.fmv_per_share_inr|int }}/share; risk adjustment is a heuristic, not options pricing. See the scenarios under Checks.</p>
+      {% else %}
+      <p class="disclaimer">Assumptions: {{ (bm.stage_esop_ratio * 100)|round|int }}% of cash for {{ bm.inputs.funding_stage }} - an authored stage default, not a sourced market figure (adjusted by role family{% if bm.esop.esop_tilt and bm.esop.esop_tilt != 1 %}, tilted up {{ ((bm.esop.esop_tilt - 1) * 100)|round|int }}% because cash is tight{% endif %}), FMV Rs.{{ bm.esop.fmv_per_share_inr|int }}/share, {{ (bm.esop.liquidity_probability * 100)|int }}% liquidity probability x {{ bm.esop.payout_multiple }}x payout for a {{ bm.esop.band }} company. A heuristic, not options pricing.</p>
+      {% endif %}
+    {% elif bm.esop.source == 'observed' %}
+      <p class="muted small">Fewer than 5 observed grants in this cohort, so there's no ESOP range. The scenarios under Checks still show what the grant you enter could be worth.</p>
+    {% else %}
+      <p class="muted small">No ESOP recommended for this stage, or FMV per share isn't set in Settings.</p>
+    {% endif %}
+    <p class="disclaimer">Model {{ bm.model_version }} - health score {{ bm.health_score_version }} ({{ bm.health.score|round|int }}/100, {{ (bm.health.coverage * 100)|round|int }}% real metrics) - generated {{ bm.generated_at|dt }} UTC.</p>
+    <p class="small" style="margin-top:6px;"><a href="{{ url_for('wf.market', role=req.role, level=req.level, city=req.city, stage=bm.inputs.funding_stage) }}"><i class="fas fa-wave-square"></i> Live market for this cohort</a> <span class="muted">- this benchmark stays frozen; the live view updates as outcomes arrive.</span></p>
+    {% if editable %}
+    <form method="POST" action="{{ url_for('wf.offer_rebenchmark', request_id=req.id) }}" style="margin-top:10px;">{{ csrf() }}
+      <button class="btn btn-ghost btn-sm" type="submit"><i class="fas fa-rotate"></i> Refresh with latest metrics &amp; bands</button></form>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="panel">
+    <h2><i class="fas fa-list-check"></i> Approvals</h2>
+    {% if latest %}
+      <ul class="timeline">
+        <li class="done"><strong>Submitted</strong> revision {{ latest.revision }} by {{ latest.user_name }}<div class="when">{{ latest.submitted_at|dt }}</div></li>
+        {% for st in route %}
+          {% set d = state.done.get(st.step) %}
+          {% set is_current = state.current_step and state.current_step.step == st.step %}
+          <li class="{{ 'done' if d else ('current' if is_current else ('bad' if state.state in ['rejected', 'changes_requested'] and not d else '')) }}">
+            <strong>{{ st.role_label }}</strong> <span class="muted small">- {{ st.reasons|join(', ') }}</span>
+            {% if d %}<div class="when">approved by {{ d.user_name }} - {{ d.ts|dt }}</div>{% elif is_current %}<div class="when">waiting</div>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+      {% if actions %}
+      <h3 class="small" style="margin:6px 0;">Activity</h3>
+      <ul class="timeline">
+        {% for a in actions %}<li class="{{ 'done' if a.action == 'approve' else ('bad' if a.action in ['reject', 'request_changes'] else '') }}"><strong>{{ a.user_name }}</strong> <span class="muted small">({{ wf_roles[a.approver_role] }})</span> {{ a.action.replace('_', ' ') }}{% if a.comment %}: "{{ a.comment }}"{% endif %}<div class="when">{{ a.ts|dt }}</div></li>{% endfor %}
+      </ul>
+      {% endif %}
+
+      {% if can_decide %}
+      <form method="POST" action="{{ url_for('wf.offer_decision', request_id=req.id) }}" style="margin-top:12px;">
+        {{ csrf() }}
+        <label for="d-comment">Your decision as {{ wf_roles[wf_user.role] }}</label>
+        <textarea id="d-comment" name="comment" rows="2" placeholder="Comment (required to reject or request changes)"></textarea>
+        <div class="btn-row" style="margin-top:8px;">
+          <button class="btn btn-primary btn-sm" name="action" value="approve" type="submit"><i class="fas fa-check"></i> Approve</button>
+          <button class="btn btn-outline btn-sm" name="action" value="request_changes" type="submit"><i class="fas fa-rotate-left"></i> Request changes</button>
+          <button class="btn btn-danger btn-sm" name="action" value="reject" type="submit"><i class="fas fa-xmark"></i> Reject</button>
+        </div>
+      </form>
+      {% elif blocked_own %}
+      <p class="flash flash-error" style="margin-top:12px;"><i class="fas fa-user-lock"></i> It's your role's turn, but you submitted this offer. Separation of duties means another {{ wf_roles[wf_user.role] }} has to decide.</p>
+      {% endif %}
+      {% if not can_decide and wf_can('view_benchmark') %}
+      <form method="POST" action="{{ url_for('wf.offer_decision', request_id=req.id) }}" class="inline-form" style="margin-top:12px;">
+        {{ csrf() }}<input type="hidden" name="action" value="comment">
+        <div class="form-group" style="flex:1;"><label for="d-c2">Comment</label><input id="d-c2" name="comment" maxlength="1000"></div>
+        <button class="btn btn-ghost btn-sm" type="submit">Post</button>
+      </form>
+      {% if state.state == 'pending' %}<p class="muted small" style="margin-top:8px;">Waiting on {{ state.current_step.role_label }}. Switch demo user to act as them.</p>{% endif %}
+      {% endif %}
+
+      <h3 class="small" style="margin:16px 0 6px;">Submission history</h3>
+      {% for s in subs %}
+        <div class="cost-row"><span><a href="{{ url_for('wf.submission_view', request_id=req.id, revision=s.revision) }}">Revision {{ s.revision }}</a> <span class="muted">scenario {{ s.package_label }} - {{ s.user_name }}</span></span><span class="small">{{ s.submitted_at|dt }}</span></div>
+      {% endfor %}
+    {% else %}
+      <p class="muted small">Not submitted yet. The route preview under Checks shows who will need to approve.</p>
+    {% endif %}
+  </div>
+
+  {% if outcome %}
+  <div class="panel">
+    <h2><i class="fas fa-flag-checkered"></i> Outcome</h2>
+    <div class="cost-row"><span>Status</span><span>{{ status(outcome.status) }}</span></div>
+    {% if outcome.final_cash_ctc %}<div class="cost-row"><span>Final cash CTC</span><span>{{ outcome.final_cash_ctc|lpa }}</span></div>
+      {% if outcome.rec_p25 is not none %}<div class="cost-row"><span>Within model P25-P75</span><span>{{ 'Yes' if outcome.rec_p25 <= outcome.final_cash_ctc <= outcome.rec_p75 else 'No' }}</span></div>{% endif %}{% endif %}
+    {% if outcome.counter_cash_ctc %}<div class="cost-row"><span>Candidate counter</span><span>{{ outcome.counter_cash_ctc|lpa }}{% if outcome.initial_cash_ctc %} ({{ "%+.1f"|format((outcome.counter_cash_ctc / outcome.initial_cash_ctc - 1) * 100) }}% vs initial){% endif %}</span></div>{% endif %}
+    {% if outcome.decline_reason %}<div class="cost-row"><span>Decline reason</span><span>{{ outcome.decline_reason }}</span></div>{% endif %}
+    {% if outcome.decision_date %}<div class="cost-row"><span>Decision date</span><span>{{ outcome.decision_date }}</span></div>{% endif %}
+  </div>
+  {% endif %}
+</div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/workflow.js') }}"></script>
+{% endblock %}

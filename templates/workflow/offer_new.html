@@ -1,0 +1,53 @@
+{% extends "_app_shell.html" %}
+{% from "workflow/_macros.html" import csrf with context %}
+{% block title %}New offer — CompIntel{% endblock %}
+{% block topbar_title %}New offer request{% endblock %}
+
+{% block content %}
+<div class="panel" style="max-width:820px;">
+  <h2><i class="fas fa-user-plus"></i> Candidate and role</h2>
+  <p class="panel-sub">A benchmark is generated when you continue. Role, level, city and budget come from the requisition; company context comes from your latest metrics.</p>
+
+  <form method="GET" class="inline-form" style="margin-bottom:18px;">
+    <div class="form-group" style="flex:1;"><label for="o-req">Requisition</label>
+      <select id="o-req" name="requisition_id" onchange="this.form.submit()">
+        <option value="">No requisition - pick role manually</option>
+        {% for q in reqs %}<option value="{{ q.id }}" {% if requisition and requisition.id == q.id %}selected{% endif %}>#{{ q.id }} {{ q.role }} - {{ q.level }} - {{ q.city }}{% if q.budget_max_lpa %} (budget {{ q.budget_max_lpa }} LPA){% endif %}</option>{% endfor %}
+      </select></div>
+    <noscript><button class="btn btn-outline" type="submit">Load</button></noscript>
+  </form>
+
+  <form method="POST">
+    {{ csrf() }}
+    {% if requisition %}<input type="hidden" name="requisition_id" value="{{ requisition.id }}">{% endif %}
+    <div class="form-grid">
+      {% if requisition %}
+        <div class="form-group full-width"><div class="stat-grid">
+          <div class="stat-cell"><div class="k">Role</div><div class="v" style="font-size:0.9rem;">{{ requisition.role }}</div></div>
+          <div class="stat-cell"><div class="k">Level</div><div class="v" style="font-size:0.9rem;">{{ requisition.level }}</div></div>
+          <div class="stat-cell"><div class="k">City</div><div class="v" style="font-size:0.9rem;">{{ requisition.city }}</div></div>
+          <div class="stat-cell"><div class="k">Budget</div><div class="v" style="font-size:0.9rem;">{{ requisition.budget_max_lpa|lpa(1) }}</div></div>
+        </div></div>
+      {% else %}
+        <div class="form-group full-width"><label for="o-role">Role</label><select id="o-role" name="role" required>
+          <option value="" disabled {% if not form.get('role') %}selected{% endif %}>Select</option>
+          {% for fam, rs in roles.items() %}<optgroup label="{{ fam }}">{% for r in rs %}<option {% if form.get('role') == r %}selected{% endif %}>{{ r }}</option>{% endfor %}</optgroup>{% endfor %}</select></div>
+        <div class="form-group"><label for="o-level">Level</label><select id="o-level" name="level">{% for l in levels %}<option {% if form.get('level') == l %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label for="o-city">City</label><select id="o-city" name="city">{% for c in cities %}<option {% if form.get('city') == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label for="o-emp">Employment type</label><select id="o-emp" name="employment_type">{% for e in employment_types %}<option {% if form.get('employment_type') == e %}selected{% endif %}>{{ e }}</option>{% endfor %}</select></div>
+      {% endif %}
+
+      <div class="form-group"><label for="o-name">Candidate name <span class="muted">(kept internal, purgeable)</span></label><input id="o-name" name="candidate_name" maxlength="120" value="{{ form.get('candidate_name', '') }}"></div>
+      <div class="form-group"><label for="o-years">Years of experience</label><input id="o-years" type="number" step="0.5" min="0" max="45" name="years_experience" required value="{{ form.get('years_experience', '') }}"></div>
+      <div class="form-group"><label for="o-skill">Skill category</label><select id="o-skill" name="skill_category" required>{% for s in skills %}<option {% if form.get('skill_category') == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+      <div class="form-group"><label for="o-edu">Education background</label><select id="o-edu" name="education_pedigree" required>{% for p in pedigrees %}<option {% if form.get('education_pedigree', 'Recognised university') == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></div>
+      <div class="form-group"><label for="o-cur">Current CTC (LPA)</label><input id="o-cur" type="number" step="0.1" name="current_ctc" value="{{ form.get('current_ctc', '') }}"></div>
+      <div class="form-group"><label for="o-exp">Expected CTC (LPA)</label><input id="o-exp" type="number" step="0.1" name="expected_ctc" value="{{ form.get('expected_ctc', '') }}"></div>
+      <div class="form-group"><label for="o-comp">Competing offer (LPA)</label><input id="o-comp" type="number" step="0.1" name="competing_offer" value="{{ form.get('competing_offer', '') }}"></div>
+      <div class="form-group"><label for="o-start">Proposed start date</label><input id="o-start" type="date" name="start_date" value="{{ form.get('start_date', '') }}"></div>
+      <p class="form-note"><i class="fas fa-shield-halved"></i> Benchmarks, snapshots and shared data use a pseudonymous candidate ID, never the name.</p>
+      <div class="form-submit"><button class="btn btn-primary btn-lg btn-block" type="submit">Generate benchmark &amp; open offer builder</button></div>
+    </div>
+  </form>
+</div>
+{% endblock %}

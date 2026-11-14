@@ -1,0 +1,141 @@
+{% from "workflow/_macros.html" import check_icon %}
+{% if error %}
+  <div class="flash flash-error"><i class="fas fa-triangle-exclamation"></i> {{ error }}</div>
+{% elif ev %}
+  {% set s = ev.summary %}
+  <div class="check-summary">
+    {% if s.block %}<span class="badge badge-danger"><i class="fas fa-ban"></i> {{ s.block }} blocking</span>{% endif %}
+    {% if s.exception %}<span class="badge badge-danger"><i class="fas fa-user-shield"></i> {{ s.exception }} exception{{ 's' if s.exception != 1 }}</span>{% endif %}
+    {% if s.warn %}<span class="badge badge-warning"><i class="fas fa-triangle-exclamation"></i> {{ s.warn }} warning{{ 's' if s.warn != 1 }}</span>{% endif %}
+    <span class="badge badge-success"><i class="fas fa-circle-check"></i> {{ s.pass }} passed</span>
+  </div>
+  <div class="ev-tabnav" role="tablist" aria-label="Offer evaluation" hidden>
+    <button type="button" role="tab" data-tab="checks">Checks{% if s.block or s.exception or s.warn %} <span class="badge badge-warning">{{ s.block + s.exception + s.warn }}</span>{% endif %}</button>
+    {% if ev.impact %}<button type="button" role="tab" data-tab="cost">Cost &amp; runway</button>{% endif %}
+    {% if ev.esop_scenarios %}<button type="button" role="tab" data-tab="esop">ESOP</button>{% endif %}
+    <button type="button" role="tab" data-tab="ctc">CTC &amp; take-home</button>
+  </div>
+  <section class="ev-tab" data-tab="checks">
+  <ul class="check-list">
+    {% for c in ev.checks if c.status != 'pass' %}
+      <li class="check-item ci-{{ c.status }}">
+        {{ check_icon(c.status) }}
+        <div>
+          <div><span class="ci-cat">{{ c.category }}</span><span class="ci-title">{{ c.title }}</span>{% if c.status == 'exception' %} <span class="badge badge-danger">needs approval</span>{% elif c.status == 'block' %} <span class="badge badge-danger">fix to submit</span>{% endif %}</div>
+          <div class="ci-detail">{{ c.detail }}</div>
+          {% if c.ruleset %}<div class="ci-rule">{{ c.ruleset }} - effective {{ c.effective_from }}</div>{% endif %}
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+  <details class="passed-checks">
+    <summary>Show {{ s.pass }} passed checks</summary>
+    <ul class="check-list">
+      {% for c in ev.checks if c.status == 'pass' %}
+        <li class="check-item ci-pass">{{ check_icon('pass') }}<div><div><span class="ci-cat">{{ c.category }}</span><span class="ci-title">{{ c.title }}</span></div><div class="ci-detail">{{ c.detail }}</div>{% if c.ruleset %}<div class="ci-rule">{{ c.ruleset }} - effective {{ c.effective_from }}</div>{% endif %}</div></li>
+      {% endfor %}
+    </ul>
+  </details>
+
+  {% if route_preview is not none %}
+  <div style="margin-top:12px;">
+    <div class="small" style="font-weight:600; margin-bottom:6px;">Approval route if submitted now</div>
+    {% if route_preview %}
+    <ul class="timeline">
+      {% for st in route_preview %}<li><strong>{{ st.role_label }}</strong> <span class="muted small">- {{ st.reasons|join(', ') }}</span></li>{% endfor %}
+    </ul>
+    {% else %}<p class="small" style="color:var(--danger);">No approval rule matches - submission will be refused.</p>{% endif %}
+  </div>
+  {% endif %}
+
+  </section>
+
+  <section class="ev-tab" data-tab="cost">
+  {% set imp = ev.impact %}
+  {% if imp is defined and imp %}
+  <div class="small" style="font-weight:600; margin:14px 0 4px;">Affordability and runway</div>
+  <table class="data-table">
+    <tbody>
+      <tr><td>Recurring annual cost</td><td class="num">Rs.{{ "%.2f"|format(imp.annual_cost_lakh) }} lakh</td></tr>
+      <tr><td>Year-one cash cost <span class="sub">incl. one-time</span></td><td class="num">Rs.{{ "%.2f"|format(imp.year_one_cost_lakh) }} lakh</td></tr>
+      <tr><td>Monthly burn increase</td><td class="num">Rs.{{ "%.2f"|format(imp.monthly_burn_increase_lakh) }} lakh{% if imp.burn_increase_pct is not none %} <span class="sub">+{{ "%.2f"|format(imp.burn_increase_pct) }}%</span>{% endif %}</td></tr>
+      {% if imp.available %}
+      <tr><td>Runway</td><td class="num">{% if imp.runway_before is not none %}{{ "%.1f"|format(imp.runway_before) }} &rarr; {% else %}break-even &rarr; {% endif %}{{ "%.1f"|format(imp.runway_after) if imp.runway_after is not none else '-' }} months{% if imp.runway_delta_months is not none %} <span class="sub">{{ "%+.2f"|format(imp.runway_delta_months) }}</span>{% endif %}</td></tr>
+      {% else %}
+      <tr><td>Runway</td><td class="num muted">add cash in bank and monthly burn</td></tr>
+      {% endif %}
+      {% if imp.plan_variance_pct is not none %}<tr><td>vs average budget per planned hire <span class="sub">Rs.{{ "%.2f"|format(imp.per_hire_budget_lakh) }} lakh</span></td><td class="num">{{ "%+.1f"|format(imp.plan_variance_pct) }}%</td></tr>{% endif %}
+    </tbody>
+  </table>
+  {% if ev.position_costs %}
+  <div class="small" style="font-weight:600; margin:12px 0 4px;">What each market position costs</div>
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Position</th><th class="num">Cash CTC</th><th class="num">vs P50 / yr</th><th class="num">Burn / month</th><th class="num">Runway after</th></tr></thead>
+    <tbody>{% for r in ev.position_costs %}
+      <tr><td>{{ r.label }}</td><td class="num">{{ "%.1f"|format(r.cash_ctc) }}</td><td class="num">{{ "%+.2f"|format(r.vs_p50_lakh) }} lakh</td>
+        <td class="num">+{{ "%.2f"|format(r.monthly_burn_increase_lakh) }}</td>
+        <td class="num">{% if r.runway_after is not none %}{{ "%.1f"|format(r.runway_after) }}{% if r.runway_vs_p50 %} <span class="sub">{{ "%+.2f"|format(r.runway_vs_p50) }}</span>{% endif %}{% else %}-{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+  {% if ev.affordability %}<p class="disclaimer">{{ ev.affordability.assumption }}</p>{% endif %}
+  {% endif %}
+
+  </section>
+
+  <section class="ev-tab" data-tab="esop">
+  {% set es = ev.esop_scenarios %}
+  {% if es is defined and es %}
+  <div class="small" style="font-weight:600; margin:14px 0 4px;">ESOP scenarios <span class="badge badge-neutral">illustrative</span></div>
+  <table class="data-table">
+    <thead><tr><th>Scenario</th><th class="num">Exit x FMV</th><th class="num">Value / share</th><th class="num">Gross gain</th><th class="num">After {{ es.tax_rate_pct|int }}% tax</th></tr></thead>
+    <tbody>{% for s in es.scenarios %}
+      <tr><td>{{ s.name }}{% if s.underwater %} <span class="badge badge-warning">underwater</span>{% endif %}</td><td class="num">{{ s.exit_multiple }}x</td>
+        <td class="num">Rs.{{ "{:,.2f}".format(s.exit_value_per_share) }}</td><td class="num">Rs.{{ "%.2f"|format(s.gross_lakh) }} lakh</td><td class="num">Rs.{{ "%.2f"|format(s.net_lakh) }} lakh</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  <div class="cost-row"><span>Exercise cost (all {{ "{:,}".format(es.options) }} options at Rs.{{ "{:,.2f}".format(es.strike_price_inr) }})</span><span>Rs.{{ "%.2f"|format(es.exercise_cost_lakh) }} lakh</span></div>
+  {% if es.ownership_pct is not none %}<div class="cost-row"><span>Ownership today / after {{ es.future_dilution_pct|int }}% future dilution</span><span>{{ "%.4f"|format(es.ownership_pct) }}% / {{ "%.4f"|format(es.ownership_after_dilution_pct) }}%</span></div>{% endif %}
+  <p class="disclaimer">{{ es.label }} Value per share = current FMV Rs.{{ "{:,.0f}".format(es.fmv_per_share_inr) }} x exit multiple x (1 - {{ es.future_dilution_pct|int }}% dilution). Tax is one flat rate standing in for perquisite tax at exercise plus capital gains at sale. Change the assumptions in Settings.</p>
+  {% endif %}
+
+  </section>
+
+  <section class="ev-tab" data-tab="ctc">
+  <div class="ctc-head">
+    <span class="small" style="font-weight:600;">CTC structure (whole rupees, sums exactly)</span>
+    <span class="badge badge-neutral" title="{{ ev.disclaimer }}"><i class="fas fa-scale-balanced"></i> Decision support only</span>
+    <a class="small" href="{{ url_for('wf.settings_page') }}#ruleset">{{ ev.ruleset.id }} v{{ ev.ruleset.version }}, effective {{ ev.ruleset.effective_from }}</a>
+  </div>
+  <table class="data-table">
+    <tbody>
+      {% for r in ev.structure.rows %}<tr><td>{{ r.component }}</td><td class="num {% if r.inr < 0 %}highlight{% endif %}">{{ r.inr|inr }}</td></tr>{% endfor %}
+      <tr><td><strong>Total cash CTC</strong></td><td class="num"><strong>{{ ev.structure.sum_inr|inr }}</strong></td></tr>
+    </tbody>
+  </table>
+  {% if ev.structure.statutory_wage_inr is defined %}
+  <div class="small" style="font-weight:600; margin:12px 0 4px;">Statutory wage (for PF / gratuity) - not the same as the Basic line</div>
+  <table class="data-table">
+    <tbody>
+      <tr><td>Remuneration <span class="sub">CTC less employer EPF and gratuity accrual</span></td><td class="num">{{ ev.structure.remuneration_inr|inr }}</td></tr>
+      <tr><td>Allowances added back <span class="sub">excluded components above 50% of remuneration</span></td><td class="num">{{ ev.structure.wage_addback_inr|inr }}</td></tr>
+      <tr><td><strong>Statutory wage (approx.)</strong> <span class="sub">Code on Wages s.2(y)</span></td><td class="num"><strong>{{ ev.structure.statutory_wage_inr|inr }}</strong></td></tr>
+    </tbody>
+  </table>
+  {% endif %}
+  {% set th = ev.take_home %}
+  {% if th is defined and th %}
+  <div class="small" style="font-weight:600; margin:12px 0 4px;">Candidate take-home (estimate)</div>
+  <table class="data-table">
+    <tbody>
+      <tr><td>Gross salary <span class="sub">CTC less employer EPF and gratuity</span></td><td class="num">{{ th.gross_salary_inr|inr }}</td></tr>
+      <tr><td>Employee EPF, professional tax</td><td class="num">-{{ (th.employee_pf_inr + th.professional_tax_inr)|inr }}</td></tr>
+      <tr><td>Income tax incl. cess <span class="sub">{{ th.ruleset }}</span></td><td class="num">-{{ th.income_tax_inr|inr }}</td></tr>
+      <tr><td><strong>Take-home</strong></td><td class="num"><strong>{{ th.annual_take_home_inr|inr }}</strong> <span class="sub">{{ th.monthly_take_home_inr|inr }}/month</span></td></tr>
+    </tbody>
+  </table>
+  <p class="disclaimer">{{ th.assumptions }}</p>
+  {% endif %}
+  <p class="disclaimer">{{ ev.disclaimer }}</p>
+  </section>
+{% endif %}

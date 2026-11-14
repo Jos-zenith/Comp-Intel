@@ -1,0 +1,131 @@
+{% extends "_app_shell.html" %}
+{% from "workflow/_macros.html" import csrf with context %}
+{% block title %}Integrations — CompIntel{% endblock %}
+{% block topbar_title %}HRIS &amp; ATS integrations{% endblock %}
+
+{% block content %}
+<div class="flash flash-warn" style="margin-bottom:16px;" role="note">
+  <i class="fas fa-plug-circle-exclamation"></i>
+  <span>Field mappings and signature schemes were written from each vendor's public documentation and <strong>have not been tested against a live account</strong>. Before switching a connection on for real data, paste a real payload into <em>Preview a payload</em> and check what it maps to. Keka, Darwinbox, greytHR and Zoho People don't publish a signed webhook for pay data, so records from them are forwarded and signed with the connection secret.</span>
+</div>
+
+{% if revealed %}
+<div class="panel" style="border-color: var(--primary);">
+  <h2><i class="fas fa-key"></i> Connection credentials (shown once)</h2>
+  <p class="panel-sub">Copy these now. The secret isn't shown again; rotate it if it's lost.</p>
+  <div class="cost-row"><span>Webhook URL</span><span class="mono">{{ revealed.url }}</span></div>
+  <div class="cost-row"><span>Signing secret</span><span class="mono">{{ revealed.secret }}</span></div>
+  <p class="muted small" style="margin-top:8px;">Signed forwarders send <code>{{ sig_header }}: sha256=&lt;hex HMAC-SHA256 of the raw body&gt;</code>. Tools that can only add a fixed header can send <code>{{ token_header }}: &lt;secret&gt;</code> instead (weaker: no body integrity).</p>
+</div>
+{% endif %}
+
+<div class="wf-grid">
+<div>
+<div class="panel">
+  <h2><i class="fas fa-link"></i> Connections</h2>
+  {% for c in connections %}
+  <div style="border-top:1px solid var(--border); padding:12px 0;">
+    <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+      <div><strong>{{ c.name }}</strong> <span class="muted small">#{{ c.id }} · {{ c.provider_obj.name if c.provider_obj else c.provider }} · {{ c.provider_obj.category|upper if c.provider_obj else '' }}</span></div>
+      <div>{% if c.active %}<span class="badge badge-success">receiving</span>{% else %}<span class="badge badge-neutral">paused</span>{% endif %}</div>
+    </div>
+    <div class="small muted" style="margin-top:4px;">Webhook: <span class="mono">{{ url_for('api_v1.integration_webhook', hook_key=c.hook_key, _external=True) }}</span></div>
+    <div class="small" style="margin-top:4px;">
+      {% for k, v in c.counts.items() %}<span class="badge badge-neutral" style="margin-right:4px;">{{ k.replace('_', ' ') }} {{ v }}</span>{% else %}<span class="muted">No deliveries yet.</span>{% endfor %}
+      {% if c.last_event_at %}<span class="muted"> · last {{ c.last_event_at|dt }}</span>{% endif %}
+    </div>
+    {% if c.last_error %}<div class="small" style="color:var(--danger); margin-top:4px;"><i class="fas fa-triangle-exclamation"></i> {{ c.last_error }} ({{ c.last_error_at|dt }})</div>{% endif %}
+    {% if c.provider_obj and c.provider_obj.note %}<p class="muted small" style="margin-top:4px;">{{ c.provider_obj.note }}</p>{% endif %}
+    <div class="btn-row" style="margin-top:8px; flex-wrap:wrap;">
+      <form method="POST" action="{{ url_for('wf.integration_test', connection_id=c.id) }}" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">{{ csrf() }}
+        <select name="status" aria-label="Test status"><option value="accepted">accepted</option><option value="declined">declined</option><option value="sent">sent</option></select>
+        <input name="amount_lpa" type="number" step="0.1" min="1" max="500" value="42" style="width:80px;" aria-label="Amount in LPA">
+        <input name="title" value="Senior Software Engineer" style="width:190px;" aria-label="Job title">
+        <input name="city" value="Bangalore" style="width:110px;" aria-label="City">
+        <button class="btn btn-outline btn-sm" type="submit"><i class="fas fa-paper-plane"></i> Send signed test event</button>
+      </form>
+    </div>
+    <div class="btn-row" style="margin-top:6px;">
+      <form method="POST" action="{{ url_for('wf.integration_toggle', connection_id=c.id) }}">{{ csrf() }}<button class="btn btn-ghost btn-sm" type="submit">{{ 'Pause' if c.active else 'Resume' }}</button></form>
+      <form method="POST" action="{{ url_for('wf.integration_rotate', connection_id=c.id) }}" onsubmit="return confirm('Rotate the signing secret? The sender must be updated.');">{{ csrf() }}<button class="btn btn-ghost btn-sm" type="submit">Rotate secret</button></form>
+    </div>
+    <details style="margin-top:6px;"><summary class="small">Field-map override</summary>
+      <form method="POST" action="{{ url_for('wf.integration_field_map', connection_id=c.id) }}">{{ csrf() }}
+        <textarea name="field_map" class="json-box" placeholder='{"fields": {"fixed_amount": ["compensation.annual_ctc"]}, "status_map": {"offer_signed": "accepted"}}'>{{ c.field_map_pretty }}</textarea>
+        <button class="btn btn-outline btn-sm" type="submit">Save field map</button>
+      </form>
+    </details>
+  </div>
+  {% else %}
+  <p class="muted small">No connections yet.</p>
+  {% endfor %}
+</div>
+
+<div class="panel">
+  <h2><i class="fas fa-plus"></i> New connection</h2>
+  <form method="POST" action="{{ url_for('wf.integration_create') }}" class="form-grid">{{ csrf() }}
+    <div class="form-group"><label for="i-provider">Provider</label>
+      <select id="i-provider" name="provider" required>
+        {% for cat, label in [('hris', 'Indian HRIS - active payroll'), ('ats', 'ATS - live offers'), ('unified', 'Unified APIs')] %}
+          <optgroup label="{{ label }}">{% for k, p in providers.items() if p.category == cat %}<option value="{{ k }}">{{ p.name }}</option>{% endfor %}</optgroup>
+        {% endfor %}
+      </select></div>
+    <div class="form-group"><label for="i-name">Name</label><input id="i-name" name="name" maxlength="80" placeholder="e.g. Greenhouse - India hiring"></div>
+    <div class="form-submit"><button class="btn btn-primary" type="submit"><i class="fas fa-plug"></i> Create connection</button></div>
+  </form>
+  <p class="muted small" style="margin-top:8px;">HRIS payroll records describe current employees. Only people who joined recently (the HRIS new-joiner window in <a href="{{ url_for('wf.settings_page') }}">Settings</a>) count as accepted offers; incumbent pay is logged but never enters market percentiles, because what someone is paid today isn't what it took to hire them.</p>
+</div>
+</div>
+
+<div>
+<div class="panel">
+  <h2><i class="fas fa-flask-vial"></i> Preview a payload</h2>
+  <p class="panel-sub">Dry run: nothing is stored. Shows what each record in a sample payload maps to, or why it's rejected.</p>
+  <form method="POST" action="{{ url_for('wf.integration_preview') }}">{{ csrf() }}
+    <div class="form-group"><label for="p-provider">Provider</label>
+      <select id="p-provider" name="provider">{% for k, p in providers.items() %}<option value="{{ k }}" {% if preview and preview.provider == k %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
+      <span class="muted small">Sample: {% for k in providers %}<a href="{{ url_for('wf.integration_sample', provider_key=k) }}" target="_blank" rel="noopener">{{ k }}</a>{{ ", " if not loop.last }}{% endfor %}</span></div>
+    <div class="form-group"><label for="p-payload">Payload (JSON)</label><textarea id="p-payload" name="payload" class="json-box" required>{{ preview.payload if preview else '' }}</textarea></div>
+    <div class="form-group"><label for="p-fm">Field-map override (optional JSON)</label><textarea id="p-fm" name="field_map" class="json-box" style="min-height:60px;">{{ preview.field_map if preview else '' }}</textarea></div>
+    <button class="btn btn-outline" type="submit"><i class="fas fa-eye"></i> Preview</button>
+  </form>
+  {% if preview %}
+    {% if preview.error %}<div class="flash flash-error" style="margin-top:10px;"><i class="fas fa-triangle-exclamation"></i> {{ preview.error }}</div>{% endif %}
+    {% for r in preview.results or [] %}
+      <div style="border-top:1px solid var(--border); padding:8px 0; margin-top:8px;">
+        <div class="small"><strong>Record {{ r.index }}</strong>
+          {% if r.ignored %}<span class="badge badge-neutral">skipped</span> {{ r.note }}
+          {% elif r.ok %}<span class="badge badge-success">maps</span>
+          {% else %}<span class="badge badge-warning">rejected</span> {{ r.error }}{% endif %}</div>
+        {% if r.event %}
+        <table class="data-table" style="margin-top:6px;"><tbody>
+          {% for k in ['kind', 'status', 'role_id', 'role', 'level', 'city', 'city_tier', 'fixed_ctc_lpa', 'variable_ctc_lpa', 'cash_ctc_lpa', 'esop_grant', 'company_stage', 'timestamp', 'counter_cash_ctc_lpa'] %}
+            <tr><td class="small">{{ k }}</td><td class="mono">{{ r.event[k] if r.event[k] is not none else '-' }}</td></tr>
+          {% endfor %}
+          {% for n in r.event.notes %}<tr><td class="small">note</td><td class="small">{{ n }}</td></tr>{% endfor %}
+        </tbody></table>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2><i class="fas fa-list"></i> Delivery log</h2>
+  <p class="panel-sub">Normalised records only. Raw payloads (which can hold candidate names and emails) are never stored, just their SHA-256.</p>
+  {% if events %}
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>When</th><th>Connection</th><th>Result</th><th>Record</th><th class="num">Cash CTC</th></tr></thead>
+    <tbody>{% for e in events %}
+      <tr><td class="small">{{ e.received_at|dt }}</td><td class="small">{{ e.connection_name or '-' }}</td>
+        <td><span class="badge {{ 'badge-success' if e.disposition in ('recorded', 'updated') else 'badge-warning' if e.disposition == 'rejected' else 'badge-neutral' }}">{{ e.disposition.replace('_', ' ') }}</span>
+          {% if e.error %}<div class="small muted">{{ e.error }}</div>{% endif %}</td>
+        <td class="small">{% if e.role %}{{ e.role }} · {{ e.level }} · {{ e.city }}<div class="muted">{{ e.kind }} / {{ e.status }}</div>{% else %}-{% endif %}</td>
+        <td class="num">{{ "%.2f"|format(e.cash_ctc_lpa) if e.cash_ctc_lpa is not none else '-' }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="muted small">Nothing received yet.</p>{% endif %}
+</div>
+</div>
+</div>
+{% endblock %}

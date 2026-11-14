@@ -1,0 +1,86 @@
+{% from "site/_brand.html" import logo, icon with context %}
+{% set ep = request.endpoint or '' %}
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}CompIntel{% endblock %}</title>
+  <meta name="description" content="{% block description %}CompIntel helps Indian B2B SaaS companies make winning offers without breaking runway: benchmarks, affordability, India CTC rules and ESOP trade-offs in one pre-offer workflow.{% endblock %}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/compintel-mark.svg') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/brand.css') }}">
+</head>
+<body class="mk">
+<a class="mk-skip" href="#main">Skip to content</a>
+<header class="mk-header">
+  <div class="mk-wrap">
+    {{ logo('primary', url_for('home')) }}
+    {% set nav = [('mk.product', 'Product'), ('mk.for_founders', 'Founders & Finance'), ('mk.for_people', 'People & Recruiting'),
+                  ('mk.india_ctc', 'India CTC'), ('mk.esop_page', 'ESOP'), ('mk.benchmarks', 'Benchmarks'), ('mk.pricing', 'Pricing')] %}
+    <nav class="mk-nav" aria-label="Main">
+      {% for e, label in nav %}<a href="{{ url_for(e) }}" {% if ep == e %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+      <a class="mk-btn mk-btn-primary mk-btn-sm" href="{{ url_for('mk.sample') }}">{{ icon('benchmark', 18) }} Generate a sample benchmark</a>
+    </nav>
+    <details class="mk-menu">
+      <summary aria-label="Open menu">{{ icon('menu', 22) }} Menu</summary>
+      <div class="mk-menu-panel">
+        {% for e, label in nav %}<a href="{{ url_for(e) }}">{{ label }}</a>{% endfor %}
+        <a href="{{ url_for('mk.pilot') }}">Apply for the pilot</a>
+        <a class="mk-btn mk-btn-primary" href="{{ url_for('mk.sample') }}">Generate a sample offer benchmark</a>
+      </div>
+    </details>
+  </div>
+</header>
+
+<main id="main">
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}<div class="mk-wrap" style="padding-top:16px;">{% for cat, msg in messages %}<div class="{{ 'mk-error' if cat == 'error' else 'mk-demo-banner' }} mk-flash" role="alert">{{ msg }}</div>{% endfor %}</div>{% endif %}
+{% endwith %}
+{% block content %}{% endblock %}
+</main>
+
+{% block final_cta %}
+<section class="mk-final">
+  <div class="mk-wrap">
+    <h2>Run your first offer scenario</h2>
+    <p>Four questions, no sign-up, no candidate data. See the market range, the package we'd recommend, and what it does to your runway.</p>
+    <div class="mk-cta-row" style="justify-content:center;">
+      <a class="mk-btn mk-btn-amber" href="{{ url_for('mk.sample') }}">Generate a sample offer benchmark {{ icon('arrow', 18) }}</a>
+      <a class="mk-btn mk-btn-ghost-dark" href="{{ url_for('mk.pilot') }}">Apply for the India SaaS pilot</a>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+<footer class="mk-footer">
+  <div class="mk-wrap">
+    <div class="mk-footer-grid">
+      <div>
+        {{ logo('reversed') }}
+        <p style="margin-top:12px; color:#A9B9CB; max-width:34ch;">Pre-offer compensation decisions for Indian B2B SaaS teams. Demo data is always labelled.</p>
+      </div>
+      <div><h4>Product</h4>
+        <a href="{{ url_for('mk.product') }}">How it works</a><a href="{{ url_for('mk.india_ctc') }}">India CTC calculator</a>
+        <a href="{{ url_for('mk.esop_page') }}">ESOP scenarios</a><a href="{{ url_for('mk.benchmarks') }}">Benchmarks &amp; data</a>
+        <a href="{{ url_for('mk.pricing') }}">Pricing</a></div>
+      <div><h4>Solutions</h4>
+        <a href="{{ url_for('mk.for_founders') }}">Founders &amp; Finance</a><a href="{{ url_for('mk.for_people') }}">People &amp; Recruiting</a>
+        <a href="{{ url_for('mk.pilot') }}">India SaaS pilot</a>
+        {% if workflow_enabled %}<a href="{{ url_for('wf.dashboard') }}">Open the offer workflow (demo)</a>{% endif %}</div>
+      <div><h4>Trust</h4>
+        <a href="{{ url_for('mk.security') }}">Security &amp; methodology</a><a href="{{ url_for('mk.privacy') }}">Privacy policy</a>
+        <a href="{{ url_for('mk.terms') }}">Terms of service</a><a href="{{ url_for('mk.security') }}#dpa">DPA requests</a></div>
+      <div><h4>Methodology lab</h4>
+        <a href="{{ url_for('predict_form') }}">Model explorer</a><a href="{{ url_for('saas_metrics_page') }}">SaaS metrics calculator</a>
+        <a href="{{ url_for('compliance_check_page') }}">CTC breakup checker</a><a href="{{ url_for('about_tech') }}">About the model</a></div>
+    </div>
+    <div class="mk-footer-base">
+      <span>&copy; 2026 CompIntel. Decision support only - not legal, tax or payroll-audit advice.</span>
+      <span>Benchmarks shown on this site come from a synthetic demo dataset.</span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

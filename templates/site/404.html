@@ -1,0 +1,18 @@
+{% extends "site/_base.html" %}
+{% from "site/_brand.html" import icon with context %}
+{% block title %}Page not found — CompIntel{% endblock %}
+{% block final_cta %}{% endblock %}
+
+{% block content %}
+<section class="mk-section">
+  <div class="mk-wrap" style="max-width:720px;">
+    <div class="mk-eyebrow">404</div>
+    <h1 style="font-size:2rem;">This page doesn't exist.</h1>
+    <p style="margin-top:8px;">The link may be old, or the address mistyped.</p>
+    <div class="mk-cta-row">
+      <a class="mk-btn mk-btn-primary" href="{{ url_for('mk.sample') }}">Generate a sample offer benchmark</a>
+      <a class="mk-btn mk-btn-ghost" href="{{ url_for('home') }}">Go to the homepage</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

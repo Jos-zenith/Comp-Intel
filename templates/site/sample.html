@@ -1,0 +1,91 @@
+{% extends "site/_base.html" %}
+{% from "site/_brand.html" import icon, demo_label with context %}
+{% from "site/_decision.html" import decision_card, sample_form with context %}
+{% block title %}Sample offer benchmark — CompIntel{% endblock %}
+{% block description %}Generate a sample offer benchmark for an Indian B2B SaaS role: market range, three package scenarios and their runway impact.{% endblock %}
+
+{% block content %}
+<section class="mk-section-tight">
+  <div class="mk-wrap">
+    <div class="mk-eyebrow">Sample offer benchmark</div>
+    <h1 style="font-size:clamp(1.6rem,3.4vw,2.3rem);">{% if s %}{{ s.role }}, {{ s.level }}, {{ s.city }}{% else %}Choose a role, level, and location to see a sample benchmark.{% endif %}</h1>
+    <p class="mk-lead" style="margin:8px 0 20px;">No sign-up and no candidate data. You'll see the market range, three packages, and what each one costs your runway.</p>
+    <div class="mk-panel">{{ sample_form(roles, levels, cities, stages, form) }}</div>
+    {% if error %}<p class="mk-error" role="alert" style="margin-top:14px;">{{ error }}</p>{% endif %}
+  </div>
+</section>
+
+{% if s %}
+<section class="mk-section-tight" style="padding-top:0;">
+  <div class="mk-wrap">
+    <div class="mk-demo-banner" role="note" style="margin-bottom:20px;">{{ icon('demo', 20) }}
+      <span><strong>Demo data &mdash; not for live hiring decisions.</strong> These numbers come from CompIntel's synthetic, benchmark-calibrated dataset, not real offers. They show how the decision works, not what the market pays.</span></div>
+
+    <div class="mk-aha" style="margin-bottom:24px;">
+      If you offer <b>&#8377;{{ "%.1f"|format(s.aha.to_cash) }} LPA</b> instead of <b>&#8377;{{ "%.1f"|format(s.aha.from_cash) }} LPA</b>, your annual cash cost rises by <b>&#8377;{{ "%.1f"|format(s.aha.cost_delta_lakh) }} lakh</b>{% if s.aha.runway_delta is not none %}, runway falls by a further <b>{{ "%.2f"|format(-s.aha.runway_delta) }} months</b>{% endif %}, and the package moves from <b>about P{{ s.aha.from_pct }}</b> to <b>about P{{ s.aha.to_pct }}</b> of the market.{% if s.aha.hire_runway_delta is not none %} The recommended hire on its own takes <b>{{ "%.2f"|format(-s.aha.hire_runway_delta) }} months</b> off your runway.{% endif %}
+    </div>
+
+    <div class="mk-split" style="align-items:start;">
+      <div>{{ decision_card(s, with_actions=False) }}</div>
+      <div>
+        <h2 style="font-size:1.3rem;">Why this recommendation</h2>
+        <ul class="mk-list">
+          <li>{{ icon('benchmark', 20) }}<span>Your policy default aims at P50. A typical {{ s.stage }} company scores {{ s.health_score }}/100 on health ({{ s.health_band }}){% if s.percentile_shift %}, which moves the target to P{{ s.target_percentile|int }}{% endif %}. {{ s.stance }}</span></li>
+          <li>{{ icon('health', 20) }}<span>Company health never moves the market range. It moves where you aim inside it and how much of the package you carry in ESOP.</span></li>
+          {% for d in s.drivers %}<li>{{ icon('confidence', 20) }}<span>{{ d.feature }} ({{ d.display_value }}) {{ 'adds' if d.lpa >= 0 else 'takes off' }} about &#8377;{{ "%.1f"|format(d.lpa|abs) }} LPA against the average.</span></li>{% endfor %}
+        </ul>
+        <p class="mk-fine" style="margin-top:14px;">Percentiles are approximate, read from a curve fitted to the P25/P50/P75 range. ESOP uses a sample FMV of &#8377;250/share and 1 crore fully diluted shares.</p>
+      </div>
+    </div>
+
+    <h2 style="font-size:1.3rem; margin-top:36px;">Three packages, side by side</h2>
+    <div class="mk-table-wrap">
+      <table class="mk-table">
+        <thead><tr><th scope="col">Package</th><th class="r" scope="col">Cash CTC</th><th class="r" scope="col">Market position</th><th class="r" scope="col">ESOP</th>
+          <th class="r" scope="col">Annual cost</th><th class="r" scope="col">Burn / month</th><th class="r" scope="col">Runway after</th><th class="r" scope="col">vs hiring plan</th></tr></thead>
+        <tbody>
+        {% for sc in s.scenarios %}
+          <tr class="{{ 'is-rec' if sc.name == 'Recommended' else '' }}">
+            <th scope="row">{{ sc.name }}{% if sc.name == 'Recommended' %} <span class="mk-tag mk-tag-teal">{{ icon('check', 14) }} recommended</span>{% elif sc.name == 'Aggressive' %} <span class="mk-tag mk-tag-amber">needs approval</span>{% endif %}</th>
+            <td class="r">&#8377;{{ "%.1f"|format(sc.cash) }} LPA</td>
+            <td class="r">about P{{ sc.percentile }}</td>
+            <td class="r">{{ "%.3f"|format(sc.esop_pct) }}%</td>
+            <td class="r">&#8377;{{ "%.1f"|format(sc.annual_cost_lakh) }} lakh</td>
+            <td class="r">+&#8377;{{ "%.2f"|format(sc.monthly_burn_lakh) }} lakh</td>
+            <td class="r">{% if sc.runway_after is not none %}{{ "%.1f"|format(sc.runway_after) }} mo <span class="mk-fine">({{ "%+.2f"|format(sc.runway_delta) if sc.runway_delta is not none else '-' }})</span>{% else %}-{% endif %}</td>
+            <td class="r">{{ "%+.0f"|format(sc.plan_variance_pct) ~ '%' if sc.plan_variance_pct is not none else '-' }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="mk-fine" style="margin-top:8px;">Conservative sits at about P35 and carries 25% more ESOP; Aggressive pays P75 with 25% less. Runway assumes the hire adds to today's burn.</p>
+
+    <div class="mk-grid mk-grid-2" style="margin-top:36px;">
+      <div class="mk-panel">
+        <h3>{{ icon('runway', 20) }} Use your own numbers</h3>
+        <p class="mk-fine" style="margin-bottom:12px;">{% if custom %}Runway now uses your numbers. They aren't stored.{% else %}The runway above uses a sample company (&#8377;30 Cr cash, &#8377;1.6 Cr monthly burn, &#8377;4 Cr for 10 hires). Add your own to sharpen it. Nothing is stored.{% endif %}</p>
+        <form class="mk-form mk-form-2" method="GET" action="{{ url_for('mk.sample') }}">
+          {% for k in ('role', 'level', 'city', 'stage') %}<input type="hidden" name="{{ k }}" value="{{ form[k] }}">{% endfor %}
+          <div class="mk-field"><label for="c-cash">Cash in bank (&#8377; Cr)</label><input id="c-cash" name="cash_balance_cr" type="number" step="0.1" min="0" value="{{ args.get('cash_balance_cr', '') }}" inputmode="decimal"></div>
+          <div class="mk-field"><label for="c-burn">Net monthly burn (&#8377; lakh)</label><input id="c-burn" name="monthly_burn_lakh" type="number" step="1" min="0" value="{{ args.get('monthly_burn_lakh', '') }}" inputmode="decimal"></div>
+          <div class="mk-field"><label for="c-budget">New-hire budget (&#8377; Cr / year)</label><input id="c-budget" name="hiring_budget_cr" type="number" step="0.1" min="0" value="{{ args.get('hiring_budget_cr', '') }}" inputmode="decimal"></div>
+          <div class="mk-field"><label for="c-hires">Planned hires</label><input id="c-hires" name="planned_hires" type="number" step="1" min="1" value="{{ args.get('planned_hires', '') }}" inputmode="numeric"></div>
+          <div><button class="mk-btn mk-btn-ghost" type="submit">Recalculate runway</button></div>
+        </form>
+      </div>
+      <div class="mk-panel-dark">
+        <h3>Ready to run a real offer?</h3>
+        <p style="margin:8px 0 18px;">A workspace adds your company context, internal bands, approval routing and the candidate brief. You can benchmark before entering any financials.</p>
+        <div class="mk-cta-row" style="margin:0;">
+          {% if workflow_enabled %}<a class="mk-btn mk-btn-amber" href="{{ url_for('wf.company') }}">Create free workspace {{ icon('arrow', 18) }}</a>{% endif %}
+          <a class="mk-btn {{ 'mk-btn-ghost-dark' if workflow_enabled else 'mk-btn-amber' }}" href="{{ url_for('mk.pilot', **{'from': 'sample'}) }}">Apply for the India SaaS pilot</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block final_cta %}{% if not s %}{{ super() }}{% endif %}{% endblock %}

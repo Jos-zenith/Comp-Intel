@@ -1,0 +1,28 @@
+{% extends "_app_shell.html" %}
+{% from "workflow/_macros.html" import range_chart with context %}
+{% block title %}Scenarios — CompIntel{% endblock %}
+{% block topbar_title %}Compare scenarios - {{ req.candidate_pseudo_id }}{% endblock %}
+
+{% block content %}
+<p style="margin-bottom:14px;"><a href="{{ url_for('wf.offer_detail', request_id=req.id) }}"><i class="fas fa-arrow-left"></i> Back to offer</a></p>
+<div class="wf-grid-3">
+  {% for s in scenarios %}
+  <div class="panel">
+    <h2><i class="fas fa-layer-group"></i> Scenario {{ s.label }}</h2>
+    {{ range_chart(bm, s.pkg.cash_ctc) }}
+    <div style="margin-top:12px;">
+      <div class="cost-row total"><span>Cash CTC</span><span>{{ s.pkg.cash_ctc|lpa }}</span></div>
+      <div class="cost-row"><span>Fixed / variable</span><span>{{ "%.2f"|format(s.pkg.fixed_pay) }} / {{ "%.2f"|format(s.pkg.variable_pay) }}</span></div>
+      {% if bm.display.show_target %}<div class="cost-row"><span>vs target</span><span>{{ "%+.1f"|format((s.pkg.cash_ctc / bm.target - 1) * 100) }}%</span></div>{% endif %}
+      <div class="cost-row"><span>Compa-ratio (peer / band)</span><span>{{ s.ev.compa_peer or '-' }} / {{ s.ev.compa_band or '-' }}</span></div>
+      <div class="cost-row"><span>ESOP options</span><span>{{ "{:,}".format(s.pkg.esop_options) }}</span></div>
+      <div class="cost-row"><span>Dilution</span><span>{{ "%.3f"|format(s.ev.costs.dilution_pct) if s.ev.costs.dilution_pct is not none else '-' }}%</span></div>
+      <div class="cost-row"><span>Year-one cash</span><span>Rs.{{ "%.2f"|format(s.ev.costs.year_one_cash) }} lakh</span></div>
+      <div class="cost-row"><span>Checks</span><span>{{ s.ev.summary.block }} block - {{ s.ev.summary.exception }} exception - {{ s.ev.summary.warn }} warn</span></div>
+    </div>
+    <div class="btn-row" style="margin-top:12px;"><a class="btn btn-outline btn-sm" href="{{ url_for('wf.offer_detail', request_id=req.id, scenario=s.label) }}">Open scenario {{ s.label }}</a></div>
+    <p class="muted small" style="margin-top:8px;">Saved {{ s.updated_at|dt }}</p>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

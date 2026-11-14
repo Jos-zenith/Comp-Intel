@@ -1,0 +1,50 @@
+{% extends "site/_base.html" %}
+{% from "site/_brand.html" import icon with context %}
+{% block title %}Pricing — CompIntel{% endblock %}
+
+{% block content %}
+<section class="mk-section-tight">
+  <div class="mk-wrap mk-section-head">
+    <div class="mk-eyebrow">Pricing</div>
+    <h1 style="font-size:clamp(1.8rem,3.8vw,2.6rem);">Start free. Contribute anonymised offer outcomes. Get private benchmarks for your open roles.</h1>
+    <p class="mk-lead" style="margin-top:10px;">No credit card. Prices are in INR, per month, billed annually, and exclude GST. Paid plans open after the pilot.</p>
+  </div>
+</section>
+
+<section class="mk-section-tight" style="padding-top:0;">
+  <div class="mk-wrap mk-grid mk-grid-5">
+    {% for name, price, unit, who, items, cta, featured in [
+      ('Data Contributor', 'Free', '', '1-100 employee startups', ['Up to 5 active roles', 'Basic private benchmarks', 'India CTC calculator', 'Limited peer cohort', 'Contribute anonymised outcomes'], 'start', False),
+      ('Starter', '&#8377;5,000-8,000', '/month', 'Small SaaS teams', ['2 recruiter seats', '25 active roles', 'Standard peer cohorts', 'Offer builder', 'Approvals'], 'start', False),
+      ('Growth', '&#8377;15,000-25,000', '/month', 'Scaling SaaS companies', ['5 seats, unlimited roles', 'ESOP module', 'Custom peer groups', 'Runway impact', 'Scenario comparison'], 'start', True),
+      ('Scale', '&#8377;50,000-75,000', '/month', 'Larger SaaS companies', ['10 seats', 'Approval workflow', 'API access', 'Priority support'], 'sales', False),
+      ('Enterprise', 'Custom', '', 'Large SaaS, staffing firms, VC platforms', ['Custom peer groups', 'Data products', 'SSO and audit controls', 'Implementation'], 'sales', False)] %}
+    <div class="mk-card {{ 'is-featured' if featured }}">
+      <h3>{{ name }}</h3>
+      <p class="mk-fine" style="min-height:2.6em;">{{ who }}</p>
+      <div class="mk-price" style="margin:8px 0 12px;">{{ price|safe }}<small>{{ unit }}</small></div>
+      <ul class="mk-list">{% for it in items %}<li>{{ icon('check', 18) }}<span class="mk-fine">{{ it }}</span></li>{% endfor %}</ul>
+      <div style="margin-top:16px;">
+      {% if cta == 'start' %}
+        <a class="mk-btn {{ 'mk-btn-primary' if featured else 'mk-btn-ghost' }} mk-btn-sm" href="{{ url_for('mk.pilot', **{'from': 'pricing-' ~ name|lower|replace(' ', '-')}) }}">{{ 'Start free' if price == 'Free' else 'Join the pilot' }}</a>
+      {% else %}
+        <a class="mk-btn mk-btn-ghost mk-btn-sm" href="{{ url_for('mk.pilot', **{'from': 'pricing-sales'}) }}">Talk to us</a>
+      {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="mk-section mk-section-alt">
+  <div class="mk-wrap">
+    <h2>Questions</h2>
+    <div class="mk-grid mk-grid-2" style="margin-top:16px;">
+      <div><h3>What does "contributor" mean?</h3><p>You share anonymised offer outcomes (role, level, city tier, offer and decision, no names) and get private benchmarks for your open roles in return. Your company's financials are never shared.</p></div>
+      <div><h3>Are today's benchmarks real?</h3><p>Not yet. The demo and this site run on a synthetic, calibrated dataset, and say so. Pilot workspaces benchmark only from real, consented offers once a cohort clears our privacy thresholds.</p></div>
+      <div><h3>Can we stop sharing later?</h3><p>Yes. Switch sharing off and your future outcomes stay private. Design partners can withdraw imported data, and it stops feeding benchmarks immediately.</p></div>
+      <div><h3>Do you do payroll or statutory filings?</h3><p>No. CompIntel is decision support before the offer. CTC and Wage Code checks are not legal or payroll-audit advice.</p></div>
+    </div>
+  </div>
+</section>
+{% endblock %}

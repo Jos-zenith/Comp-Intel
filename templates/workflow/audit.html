@@ -1,0 +1,33 @@
+{% extends "_app_shell.html" %}
+{% block title %}Audit log — CompIntel{% endblock %}
+{% block topbar_title %}Audit log{% endblock %}
+
+{% block content %}
+<div class="panel">
+  <form method="GET" class="inline-form" style="margin-bottom:14px;">
+    <div class="form-group"><label for="a-from">From</label><input id="a-from" type="date" name="from" value="{{ start }}"></div>
+    <div class="form-group"><label for="a-to">To</label><input id="a-to" type="date" name="to" value="{{ end }}"></div>
+    <button class="btn btn-outline" type="submit">Filter</button>
+    <a class="btn btn-ghost" href="{{ url_for('wf.audit_export', **{'from': start, 'to': end}) }}"><i class="fas fa-file-csv"></i> Export CSV</a>
+    <a class="btn btn-outline" href="{{ url_for('wf.audit_page', verify=1, **{'from': start, 'to': end}) }}"><i class="fas fa-link"></i> Verify integrity</a>
+  </form>
+  {% if integrity %}
+    <div class="flash {{ 'flash-success' if integrity.ok else 'flash-error' }}">
+      <i class="fas {{ 'fa-circle-check' if integrity.ok else 'fa-triangle-exclamation' }}"></i>
+      <div>
+        {% if integrity.ok %}Intact: {{ integrity.audit_entries }} chained audit entries, {{ integrity.submissions }} submission snapshots and {{ integrity.actions }} approval actions all match their hashes. Chain head <span class="mono-num">{{ integrity.head[:16] }}...</span>
+        {% else %}Integrity problems found:<ul>{% for p in integrity.problems[:20] %}<li>{{ p }}</li>{% endfor %}</ul>{% endif %}
+      </div>
+    </div>
+  {% endif %}
+  <p class="muted small" style="margin-bottom:10px;">{{ total }} entries{% if total > 500 %} (showing the latest 500; export for all){% endif %}. Entries can't be edited or deleted, and each one carries the hash of the one before it, so a change made directly in the database breaks the chain.</p>
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>When (UTC)</th><th>Who</th><th>Action</th><th>Entity</th><th>Detail</th></tr></thead>
+    <tbody>{% for r in rows %}
+      <tr><td class="num">{{ r.ts|dt }}</td><td>{{ r.user_name or '-' }}<span class="sub">{{ wf_roles.get(r.user_role, r.user_role) }}</span></td>
+        <td>{{ r.action.replace('_', ' ') }}</td><td>{{ r.entity }}{% if r.entity_id %} #{{ r.entity_id }}{% endif %}</td>
+        <td><span class="sub" style="max-width:420px; overflow-wrap:anywhere;">{{ r.detail[:240] }}</span></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</div>
+{% endblock %}

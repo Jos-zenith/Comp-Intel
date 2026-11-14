@@ -1,0 +1,42 @@
+{
+  "id": "IN-CTC",
+  "version": "2026.04-r2",
+  "status": "active",
+  "effective_from": "2026-04-01",
+  "effective_to": null,
+  "supersedes": "2026.04-r1",
+  "changes": "r2: replaced 'Basic >= 50% of CTC' with the s.2(y) wage definition (excluded allowances above 50% of remuneration are added back to wages).",
+  "sources": [
+    "Code on Wages, 2019, s.2(y) - wages are Basic + DA + retaining allowance; excluded components above 50% of total remuneration are added back to wages. In force 2026-04-01",
+    "EPF & MP Act, 1952 - employer contribution 12% of Basic + DA",
+    "Payment of Gratuity Act, 1972 - 15/26 days per year of service (~4.81% of Basic accrual)",
+    "HRA 50%/40% of Basic (metro/non-metro) and LTA ~1 month of Basic are payroll conventions, not statutes"
+  ],
+  "structure": {
+    "basic_pct_of_ctc": 0.50,
+    "hra_pct_of_basic": {"metro": 0.50, "non_metro": 0.40},
+    "metro_cities": ["Bengaluru", "Chennai", "Hyderabad", "Gurugram", "Pune"],
+    "employer_epf_pct_of_basic": 0.12,
+    "gratuity_accrual_pct_of_basic": 0.0481,
+    "lta_pct_of_basic": 0.0833,
+    "default_variable_pct_of_ctc": 0.10,
+    "wage_excluded_cap_pct": 0.50
+  },
+  "rules": [
+    {"id": "ctc_fit", "type": "variable_fits", "category": "CTC structure", "on_fail": "block", "statute": false},
+    {"id": "ctc_wage", "type": "wage_addback", "category": "Statutory wage", "on_fail": "warn", "statute": true,
+     "requires_fit": true, "params": {"excluded_cap_pct": 0.50}},
+    {"id": "ctc_hra", "type": "ratio_of_basic", "category": "CTC structure", "on_fail": "warn", "statute": false,
+     "requires_fit": true, "params": {"component": "hra", "expected": {"metro": 0.50, "non_metro": 0.40}, "tolerance": 0.05}},
+    {"id": "ctc_epf", "type": "ratio_of_basic", "category": "CTC structure", "on_fail": "block", "statute": true,
+     "requires_fit": true, "params": {"component": "employer_epf", "expected": 0.12, "tolerance": 0.01}},
+    {"id": "ctc_gratuity", "type": "ratio_of_basic", "category": "CTC structure", "on_fail": "block", "statute": true,
+     "requires_fit": true, "params": {"component": "gratuity", "expected": 0.0481, "tolerance": 0.01}},
+    {"id": "ctc_within", "type": "components_within_ctc", "category": "CTC structure", "on_fail": "block", "statute": false,
+     "requires_fit": true},
+    {"id": "ctc_sum", "type": "sums_to_ctc", "category": "CTC structure", "on_fail": "block", "statute": false,
+     "requires_fit": true},
+    {"id": "epf_ceiling", "type": "epf_wage_ceiling", "category": "CTC structure", "on_fail": "info", "statute": true,
+     "params": {"monthly_wage_ceiling_inr": 15000, "employer_pct": 0.12}}
+  ]
+}
